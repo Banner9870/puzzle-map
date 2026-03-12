@@ -1,5 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { geoConicConformal, geoPath, type GeoProjection } from 'd3-geo'
+import {
+  loadPuzzleState,
+  savePuzzleState,
+  type PuzzleState,
+  type StoredPieceState,
+} from '../persistence'
 
 type NeighborhoodFeature = {
   type: 'Feature'
@@ -37,6 +43,9 @@ type PieceState = {
 type PuzzleCanvasProps = {
   onNeighborhoodTap?: (name: string) => void
   onCompleted?: () => void
+  visitorId?: string | null
+  onPuzzleStarted?: () => void
+  onMove?: () => void
 }
 
 const SNAP_TOLERANCE = 24
@@ -79,6 +88,9 @@ function getPathString(
 export function PuzzleCanvas({
   onNeighborhoodTap,
   onCompleted,
+  visitorId,
+  onPuzzleStarted,
+  onMove,
 }: PuzzleCanvasProps) {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const svgRef = useRef<SVGSVGElement | null>(null)
@@ -93,6 +105,37 @@ export function PuzzleCanvas({
     null,
   )
   const dragStartedRef = useRef(false)
+  const hasReportedPuzzleStartedRef = useRef(false)
+
+  const applyStoredState = useCallback(
+    (basePieces: PieceState[], stored: PuzzleState | null): PieceState[] => {
+      if (!stored) return basePieces
+      const map = new Map<string, StoredPieceState>()
+      for (const entry of stored.placedPieces ?? []) {
+        map.set(entry.id, entry)
+      }
+      const next = basePieces.map((piece) => {
+        const storedPiece = map.get(piece.id)
+        if (!storedPiece) return piece
+        return {
+          ...piece,
+          currentCenterX: storedPiece.currentCenterX,
+          currentCenterY: storedPiece.currentCenterY,
+          isLocked: storedPiece.isLocked,
+        }
+      })
+      if (stored.completed) {
+        return next.map((piece) => ({
+          ...piece,
+          currentCenterX: piece.targetCenterX,
+          currentCenterY: piece.targetCenterY,
+          isLocked: true,
+        }))
+      }
+      return next
+    },
+    [],
+  )
 
   // Resize observer to keep dimensions in sync
   useEffect(() => {
@@ -151,9 +194,12 @@ export function PuzzleCanvas({
         const outlineParts: string[] = []
         for (let index = 0; index < data.features.length; index++) {
           const feature = data.features[index]
-          const name =
-            (feature.properties?.name as string) ??
-            `Neighborhood ${index + 1}`
+          const props = feature.properties ?? {}
+          const primaryName =
+            (props.pri_neigh as string) ??
+            (props.PRI_NEIGH as string) ??
+            (props.name as string)
+          const name = primaryName || `Neighborhood ${index + 1}`
           const id = String(feature.id ?? index)
           const pathStr = getPathString(pathGenerator, feature)
           if (!pathStr) continue
@@ -178,7 +224,7 @@ export function PuzzleCanvas({
 
         setOutlinePath(outlineParts.join(' '))
 
-        const piecesState: PieceState[] = []
+        let piecesState: PieceState[] = []
         for (const entry of featureData) {
           const { id, name, pathStr, bounds } = entry
           const [[minX, minY], [maxX, maxY]] = bounds
@@ -286,6 +332,10 @@ export function PuzzleCanvas({
             maxY,
           })
         }
+        if (visitorId) {
+          const stored = loadPuzzleState(visitorId)
+          piecesState = applyStoredState(piecesState, stored)
+        }
         setPieces(piecesState)
         setIsReady(true)
       } catch (err) {
@@ -299,7 +349,23 @@ export function PuzzleCanvas({
     return () => {
       cancelled = true
     }
-  }, [dimensions])
+  }, [dimensions, applyStoredState, visitorId])
+
+  useEffect(() => {
+    if (!visitorId || pieces.length === 0) return
+    const storedPieces: StoredPieceState[] = pieces.map((piece) => ({
+      id: piece.id,
+      currentCenterX: piece.currentCenterX,
+      currentCenterY: piece.currentCenterY,
+      isLocked: piece.isLocked,
+    }))
+    const completed = pieces.every((p) => p.isLocked)
+    const state: PuzzleState = {
+      completed,
+      placedPieces: storedPieces,
+    }
+    savePuzzleState(visitorId, state)
+  }, [pieces, visitorId])
 
   const getSvgPoint = useCallback((clientX: number, clientY: number) => {
     const svg = svgRef.current
@@ -349,6 +415,10 @@ export function PuzzleCanvas({
     (e: React.PointerEvent) => {
       if (!draggingPieceId || !dragOffset) return
       dragStartedRef.current = true
+      if (!hasReportedPuzzleStartedRef.current) {
+        hasReportedPuzzleStartedRef.current = true
+        onPuzzleStarted?.()
+      }
       const pt = getSvgPoint(e.clientX, e.clientY)
       const newCenterX = pt.x + dragOffset.x
       const newCenterY = pt.y + dragOffset.y
@@ -377,6 +447,9 @@ export function PuzzleCanvas({
       if (!id) return
       const piece = pieces.find((p) => p.id === id)
       if (!piece) return
+
+      const wasDrag = dragStartedRef.current
+      dragStartedRef.current = false
 
       if (!dragStartedRef.current && piece.name) {
         onNeighborhoodTap?.(piece.name)
@@ -417,8 +490,11 @@ export function PuzzleCanvas({
         }
         return next
       })
+      if (wasDrag) {
+        onMove?.()
+      }
     },
-    [pieces, draggingPieceId, onNeighborhoodTap, onCompleted],
+    [pieces, draggingPieceId, onNeighborhoodTap, onCompleted, onMove],
   )
 
   const pieceFill = getCssColor('--brand-red', '#ed0000')
@@ -489,8 +565,8 @@ export function PuzzleCanvas({
             d={outlinePath}
             fill="none"
             stroke={outlineStroke}
-            strokeWidth={1.5}
-            strokeOpacity={0.6}
+            strokeWidth={2}
+            strokeOpacity={0.75}
           />
         )}
         {[...pieces]
@@ -527,9 +603,9 @@ export function PuzzleCanvas({
                 <path
                   d={piece.pathString}
                   fill={pieceFill}
-                  fillOpacity={0.22}
+                  fillOpacity={0.3}
                   stroke={pieceStroke}
-                  strokeWidth={2}
+                  strokeWidth={2.6}
                   style={{
                     cursor: piece.isLocked ? 'default' : 'grab',
                   }}

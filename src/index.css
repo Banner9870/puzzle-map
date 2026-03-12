@@ -24,7 +24,7 @@
   --page-max-width: 1120px;
   --header-height: 64px;
 
-  color-scheme: light dark;
+  color-scheme: light;
   font-family: var(--font-sans);
   line-height: 1.5;
   font-weight: 400;
@@ -99,6 +99,13 @@ button:focus-visible {
   margin-bottom: 1.25rem;
 }
 
+.page-header-inner {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
 .page-title-block {
   max-width: 40rem;
 }
@@ -120,6 +127,36 @@ button:focus-visible {
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
+}
+
+.layout-main-primary {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.layout-main-sidebar {
+  border-radius: var(--radius-lg);
+  background-color: var(--surface-elevated);
+  box-shadow: var(--shadow-soft);
+  padding: 1rem 1.1rem 1.1rem;
+  font-size: 0.9rem;
+}
+
+.sidebar-title {
+  font-family: var(--font-serif);
+  font-size: 1.1rem;
+  margin: 0 0 0.35rem;
+  color: var(--text-headline);
+}
+
+.sidebar-body {
+  margin: 0 0 0.6rem;
+}
+
+.sidebar-body--muted {
+  color: var(--text-body);
+  opacity: 0.9;
 }
 
 .puzzle-shell {
@@ -154,6 +191,9 @@ button:focus-visible {
   display: block;
   width: 100%;
   height: 100%;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 .puzzle-canvas-wrapper--error {
@@ -202,27 +242,67 @@ button:focus-visible {
   color: var(--brand-red);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg-primary: #020617;
-    --surface-elevated: #0b1120;
-    --text-headline: #e5e7eb;
-    --text-body: #9ca3af;
-    --border-color: #1f2937;
-    --map-outline: #e5e7eb;
+:root[data-theme='dark'] {
+  --bg-primary: #020617;
+  --surface-elevated: #0b1120;
+  --text-headline: #e5e7eb;
+  --text-body: #9ca3af;
+  --border-color: #1f2937;
+  --map-outline: #e5e7eb;
+  color-scheme: dark;
+}
+
+:root[data-theme='dark'] body {
+  background-color: var(--bg-primary);
+  color: var(--text-body);
+}
+
+:root[data-theme='dark'] .puzzle-shell {
+  background: radial-gradient(
+    circle at top,
+    #111827 0,
+    #020617 40%,
+    #000000 100%
+  );
+}
+
+@media (min-width: 768px) {
+  .layout-main {
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 1.75rem;
   }
 
-  body {
-    background-color: var(--bg-primary);
-    color: var(--text-body);
+  .layout-main-primary {
+    flex: 3;
   }
 
-  .puzzle-shell {
-    background: radial-gradient(
-      circle at top,
-      #111827 0,
-      #020617 40%,
-      #000000 100%
-    );
+  .layout-main-sidebar {
+    flex: 2;
+    align-self: stretch;
   }
+}
+
+:root[data-theme='dark'] {
+  --bg-primary: #020617;
+  --surface-elevated: #0b1120;
+  --text-headline: #e5e7eb;
+  --text-body: #9ca3af;
+  --border-color: #1f2937;
+  --map-outline: #e5e7eb;
+  color-scheme: dark;
+}
+
+:root[data-theme='dark'] body {
+  background-color: var(--bg-primary);
+  color: var(--text-body);
+}
+
+:root[data-theme='dark'] .puzzle-shell {
+  background: radial-gradient(
+    circle at top,
+    #111827 0,
+    #020617 40%,
+    #000000 100%
+  );
 }
