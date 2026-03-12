@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "dev": "node index.js",
+    "start": "node index.js",
     "lint": "eslint .",
     "format": "prettier --write .",
     "test": "echo \"No tests defined for backend yet\" && exit 0"
@@ -14,7 +15,8 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
-    "express": "^5.2.1"
+    "express": "^5.2.1",
+    "pg": "^8.13.1"
   },
   "devDependencies": {
     "eslint": "^10.0.3",

@@ -145,3 +145,16 @@ export function trackEmailSubmitFailure(options: {
   })
 }
 
+export function trackOverrideJumpToComplete(options: {
+  deviceType: DeviceType
+  orientation: Orientation
+}) {
+  if (!window.gtag) return
+  window.gtag('event', 'override_jump_to_complete', {
+    device_type: options.deviceType,
+    orientation: options.orientation,
+    admin_override: true,
+  })
+}
+
+

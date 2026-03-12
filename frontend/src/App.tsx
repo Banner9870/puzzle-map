@@ -7,9 +7,13 @@ import {
   detectOrientation,
   initAnalytics,
   trackPuzzleCompleted,
+  trackEmailSubmitAttempt,
+  trackEmailSubmitFailure,
+  trackEmailSubmitSuccess,
   trackPuzzleStarted,
   trackPuzzleView,
   trackUserUuidCreated,
+  trackOverrideJumpToComplete,
 } from './analytics'
 
 type Theme = 'light' | 'dark'
@@ -39,6 +43,16 @@ function App() {
   const [movesCount, setMovesCount] = useState(0)
   const [puzzleStartedAt, setPuzzleStartedAt] = useState<number | null>(null)
   const [theme, setTheme] = useState<Theme>(getInitialTheme)
+  const [isCompletionModalOpen, setIsCompletionModalOpen] = useState(false)
+  const [emailValue, setEmailValue] = useState('')
+  const [emailStatus, setEmailStatus] = useState<
+    'idle' | 'submitting' | 'success' | 'error'
+  >('idle')
+  const [emailError, setEmailError] = useState<string | null>(null)
+  const [titleClickCount, setTitleClickCount] = useState(0)
+  const [titleClickWindowStart, setTitleClickWindowStart] = useState<
+    number | null
+  >(null)
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme
@@ -58,6 +72,9 @@ function App() {
     const stored = loadPuzzleState(id)
     const completedFromStorage = stored?.completed ?? false
     setIsCompleted(completedFromStorage)
+    if (completedFromStorage) {
+      setIsCompletionModalOpen(true)
+    }
 
     const deviceType = detectDeviceType()
     const orientation = detectOrientation()
@@ -79,6 +96,126 @@ function App() {
     setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'))
   }
 
+  const validateEmail = (value: string): string | null => {
+    const trimmed = value.trim()
+    if (!trimmed) return 'Please enter an email address.'
+    // Simple but effective email pattern for prototype.
+    const pattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!pattern.test(trimmed)) return 'That email address does not look valid.'
+    return null
+  }
+
+  const handleSubmitEmail: React.FormEventHandler<HTMLFormElement> = async (
+    event,
+  ) => {
+    event.preventDefault()
+    if (!visitorId) {
+      setEmailError('Something went wrong identifying this session. Please reload.')
+      setEmailStatus('error')
+      return
+    }
+
+    const deviceType = detectDeviceType()
+    const hasCompletedPuzzle = isCompleted
+
+    const validationMessage = validateEmail(emailValue)
+    if (validationMessage) {
+      setEmailError(validationMessage)
+      setEmailStatus('error')
+      trackEmailSubmitFailure({
+        deviceType,
+        errorType: 'validation',
+      })
+      return
+    }
+
+    setEmailError(null)
+    setEmailStatus('submitting')
+
+    trackEmailSubmitAttempt({
+      deviceType,
+      hasCompletedPuzzle,
+    })
+
+    const backendBase =
+      (import.meta.env.VITE_BACKEND_URL as string | undefined) ?? ''
+    const endpoint =
+      backendBase && backendBase.length > 0
+        ? `${backendBase.replace(/\/+$/, '')}/api/early-access`
+        : '/api/early-access'
+
+    const nowIso = new Date().toISOString()
+    const url = new URL(window.location.href)
+    const params = url.searchParams
+
+    const payload = {
+      uuid: visitorId,
+      email: emailValue.trim(),
+      completed_at: hasCompletedPuzzle ? nowIso : null,
+      user_agent: navigator.userAgent,
+      referrer: document.referrer || null,
+      utm_source: params.get('utm_source'),
+      utm_medium: params.get('utm_medium'),
+      utm_campaign: params.get('utm_campaign'),
+    }
+
+    try {
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      })
+
+      if (!response.ok) {
+        setEmailStatus('error')
+        setEmailError('We could not save your email. Please try again.')
+        trackEmailSubmitFailure({
+          deviceType,
+          errorType: 'server',
+        })
+        return
+      }
+
+      setEmailStatus('success')
+      trackEmailSubmitSuccess({
+        deviceType,
+        hasCompletedPuzzle,
+      })
+    } catch {
+      setEmailStatus('error')
+      setEmailError('Network error. Please check your connection and try again.')
+      trackEmailSubmitFailure({
+        deviceType,
+        errorType: 'network',
+      })
+    }
+  }
+
+  const handleTitleClick: React.MouseEventHandler<HTMLHeadingElement> = () => {
+    const now =
+      typeof performance !== 'undefined' ? performance.now() : Date.now()
+    const windowMs = 3000
+
+    if (titleClickWindowStart == null || now - titleClickWindowStart > windowMs) {
+      setTitleClickWindowStart(now)
+      setTitleClickCount(1)
+      return
+    }
+
+    const nextCount = titleClickCount + 1
+    setTitleClickCount(nextCount)
+
+    if (!isCompleted && nextCount >= 5) {
+      const deviceType = detectDeviceType()
+      const orientation = detectOrientation()
+      trackOverrideJumpToComplete({ deviceType, orientation })
+      setIsCompleted(true)
+      setIsCompletionModalOpen(true)
+    }
+  }
+
   if (!hasHydratedVisitor) {
     return (
       <div className="page">
@@ -95,7 +232,12 @@ function App() {
         <header className="page-header">
           <div className="page-header-inner">
             <div className="page-title-block">
-              <h1 className="page-title">Help us map Chicago together.</h1>
+              <h1
+                className="page-title"
+                onClick={handleTitleClick}
+              >
+                Help us map Chicago together.
+              </h1>
               <p className="page-subtitle">
                 A jigsaw puzzle made from the city&apos;s neighborhoods — a
                 small preview of what we&apos;re building with chicago.com.
@@ -131,6 +273,7 @@ function App() {
                   onNeighborhoodTap={(name) => setLastNeighborhood(name)}
                   onCompleted={() => {
                     setIsCompleted(true)
+                    setIsCompletionModalOpen(true)
                     const deviceType = detectDeviceType()
                     const orientation = detectOrientation()
                     const now =
@@ -181,8 +324,8 @@ function App() {
               )}
               {isCompleted && (
                 <p className="puzzle-shell-caption">
-                  Puzzle complete. In a later phase, this will open a small
-                  completion message and email capture.
+                  Puzzle complete. Check the message below to get early access
+                  updates.
                 </p>
               )}
             </section>
@@ -209,6 +352,72 @@ function App() {
             </p>
           </aside>
         </section>
+
+        {isCompletionModalOpen && (
+          <div className="completion-modal-backdrop" role="presentation">
+            <div
+              className="completion-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="completion-modal-title"
+            >
+              <h2 id="completion-modal-title" className="completion-modal-title">
+                You mapped Chicago.
+              </h2>
+              <p className="completion-modal-body">
+                We&apos;re building chicago.com as a new way for Chicagoans to
+                see their city, neighborhood by neighborhood. Drop your email
+                below if you&apos;d like early access when it&apos;s ready.
+              </p>
+              <form className="completion-modal-form" onSubmit={handleSubmitEmail}>
+                <label className="completion-modal-label">
+                  <span className="completion-modal-label-text">Email address</span>
+                  <input
+                    type="email"
+                    autoComplete="email"
+                    value={emailValue}
+                    onChange={(event) => setEmailValue(event.target.value)}
+                    className="completion-modal-input"
+                    required
+                  />
+                </label>
+                {emailError && (
+                  <p className="completion-modal-error" role="alert">
+                    {emailError}
+                  </p>
+                )}
+                <div className="completion-modal-actions">
+                  <button
+                    type="submit"
+                    disabled={emailStatus === 'submitting'}
+                  >
+                    {emailStatus === 'submitting'
+                      ? 'Sending…'
+                      : 'Get early access updates'}
+                  </button>
+                  <button
+                    type="button"
+                    className="completion-modal-secondary"
+                    onClick={() => setIsCompletionModalOpen(false)}
+                  >
+                    Maybe later
+                  </button>
+                </div>
+                {emailStatus === 'success' && (
+                  <p className="completion-modal-success">
+                    Thanks — you&apos;re on the list. We&apos;ll be in touch as
+                    chicago.com takes shape.
+                  </p>
+                )}
+              </form>
+              <p className="completion-modal-privacy">
+                We&apos;ll only use your email for updates about this project.
+                For full terms and privacy details, see Chicago Public Media&apos;s
+                main site.
+              </p>
+            </div>
+          </div>
+        )}
 
         <footer className="page-footer">
           <p>
