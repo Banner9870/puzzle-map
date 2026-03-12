@@ -79,6 +79,16 @@ function App() {
     setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'))
   }
 
+  if (!hasHydratedVisitor) {
+    return (
+      <div className="page">
+        <main className="page-inner">
+          <p className="puzzle-shell-caption">Loading puzzle…</p>
+        </main>
+      </div>
+    )
+  }
+
   return (
     <div className="page">
       <main className="page-inner">
