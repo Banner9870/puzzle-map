@@ -359,7 +359,7 @@ function App() {
                 {copy.puzzleInstruction}
               </p>
               {lastNeighborhood && (
-                <p className="puzzle-shell-caption">
+                <p className="puzzle-shell-caption puzzle-shell-caption--hint">
                   {copy.lastTappedPrefix} <strong>{lastNeighborhood}</strong>.
                 </p>
               )}

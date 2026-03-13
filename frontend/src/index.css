@@ -229,6 +229,32 @@ button:focus-visible {
   color: var(--text-body);
 }
 
+/* Hint line (e.g. "You last tapped X") — more visible */
+.puzzle-shell-caption--hint {
+  background: var(--surface-elevated);
+  padding: 0.5rem 0.75rem;
+  margin-top: 0.75rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--border-color);
+  font-weight: 500;
+  font-size: 1rem;
+}
+
+.puzzle-shell-caption--hint strong {
+  color: var(--text-headline);
+}
+
+@media (max-width: 599px) {
+  .puzzle-shell-caption {
+    padding: 1rem 1rem 0;
+  }
+
+  .puzzle-shell-caption--hint {
+    margin-left: 0;
+    margin-right: 0;
+  }
+}
+
 /* Footer — CPM / WBEZ style: multi-column links, logo, copyright row */
 .page-footer {
   margin-top: 2.5rem;

@@ -712,15 +712,15 @@ export function PuzzleCanvas({
       const wasDrag = dragStartedRef.current
       dragStartedRef.current = false
 
-      if (!wasDrag && piece.name) {
+      if (piece.name) {
         onNeighborhoodTap?.(piece.name)
-        if (!piece.isLocked) {
-          setUnlockedOrder((order) => {
-            const i = order.indexOf(id)
-            if (i <= 0) return order
-            return [id, ...order.slice(0, i), ...order.slice(i + 1)]
-          })
-        }
+      }
+      if (!wasDrag && !piece.isLocked) {
+        setUnlockedOrder((order) => {
+          const i = order.indexOf(id)
+          if (i <= 0) return order
+          return [id, ...order.slice(0, i), ...order.slice(i + 1)]
+        })
       }
 
       if (draggingPieceId !== id) return
