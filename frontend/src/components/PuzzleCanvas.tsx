@@ -758,7 +758,7 @@ export function PuzzleCanvas({
             />
           </filter>
         </defs>
-        {/* City outline silhouette behind pieces */}
+        {/* City outline silhouette behind pieces; non-interactive so it never blocks piece drag/tap */}
         {outlinePath && (
           <path
             className="puzzle-outline"
@@ -767,6 +767,8 @@ export function PuzzleCanvas({
             stroke={outlineStroke}
             strokeWidth={1.6}
             strokeOpacity={0.75}
+            style={{ pointerEvents: 'none' }}
+            aria-hidden="true"
           />
         )}
         {[...pieces]
