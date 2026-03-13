@@ -149,6 +149,12 @@ button:focus-visible {
   margin: 0;
 }
 
+/* Hint in right column: no top margin, space below before teaser */
+.layout-main-teaser .puzzle-shell-caption--hint {
+  margin-top: 0;
+  margin-bottom: 1rem;
+}
+
 .teaser-text {
   margin: 0;
   font-size: 0.95rem;
@@ -223,7 +229,7 @@ button:focus-visible {
 }
 
 .puzzle-shell-caption {
-  padding: 1rem 0 0;
+  padding: 1rem 0;
   font-size: 0.875rem;
   line-height: 1.5;
   color: var(--text-body);
@@ -231,8 +237,11 @@ button:focus-visible {
 
 /* Hint line (e.g. "You last tapped X") — more visible, centered in tile */
 .puzzle-shell-caption--hint {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   background: var(--surface-elevated);
-  padding: 0.6rem 1rem;
+  padding: 0.75rem 1rem;
   margin-top: 0.75rem;
   border-radius: var(--radius);
   border: 1px solid var(--border-color);
@@ -247,7 +256,7 @@ button:focus-visible {
 
 @media (max-width: 599px) {
   .puzzle-shell-caption {
-    padding: 1rem 1rem 0;
+    padding: 1rem;
   }
 
   .puzzle-shell-caption--hint {
@@ -406,6 +415,9 @@ button:focus-visible {
   .layout-main-teaser {
     flex: 0 0 20rem;
     padding-top: 0.5rem;
+    position: sticky;
+    top: 1rem;
+    align-self: flex-start;
   }
 }
 

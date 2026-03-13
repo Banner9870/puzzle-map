@@ -358,11 +358,6 @@ function App() {
               <p className="puzzle-shell-caption">
                 {copy.puzzleInstruction}
               </p>
-              {lastNeighborhood && (
-                <p className="puzzle-shell-caption puzzle-shell-caption--hint">
-                  {copy.lastTappedPrefix} <strong>{lastNeighborhood}</strong>.
-                </p>
-              )}
               {isCompleted && (
                 <p className="puzzle-shell-caption">
                   {copy.completionCaption}
@@ -375,6 +370,11 @@ function App() {
             className="layout-main-teaser"
             aria-label="About this experience"
           >
+            {lastNeighborhood && (
+              <p className="puzzle-shell-caption puzzle-shell-caption--hint">
+                {copy.lastTappedPrefix} <strong>{lastNeighborhood}</strong>.
+              </p>
+            )}
             <p className="teaser-text">{copy.teaser}</p>
           </aside>
         </section>
