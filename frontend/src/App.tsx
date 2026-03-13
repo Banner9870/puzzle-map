@@ -2,7 +2,11 @@ import './App.css'
 import { useEffect, useState } from 'react'
 import { PuzzleCanvas } from './components/PuzzleCanvas'
 import { copy } from './content'
-import { getOrCreateVisitorId, loadPuzzleState } from './persistence'
+import {
+  clearPuzzleState,
+  getOrCreateVisitorId,
+  loadPuzzleState,
+} from './persistence'
 import {
   detectDeviceType,
   detectOrientation,
@@ -55,6 +59,8 @@ function App() {
     number | null
   >(null)
   const [forceCompleteSignal, setForceCompleteSignal] = useState(0)
+  const [forceShuffleSignal, setForceShuffleSignal] = useState(0)
+  const [forceClearSignal, setForceClearSignal] = useState(0)
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme
@@ -97,6 +103,19 @@ function App() {
 
   const handleToggleTheme = () => {
     setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'))
+  }
+
+  const handleShufflePieces = () => {
+    setForceShuffleSignal((n) => n + 1)
+  }
+
+  const handleClearPuzzle = () => {
+    if (visitorId) {
+      clearPuzzleState(visitorId)
+    }
+    setIsCompleted(false)
+    setIsCompletionModalOpen(false)
+    setForceClearSignal((n) => n + 1)
   }
 
   const validateEmail = (value: string): string | null => {
@@ -246,22 +265,40 @@ function App() {
                 {copy.subheadline}
               </p>
             </div>
-            <button
-              type="button"
-              className="theme-toggle"
-              onClick={handleToggleTheme}
-              aria-label={
-                theme === 'dark'
-                  ? 'Switch to light theme'
-                  : 'Switch to dark theme'
-              }
-              aria-pressed={theme === 'dark'}
-            >
-              <span className="theme-toggle-label">Theme</span>
-              <span className="theme-toggle-value">
-                {theme === 'dark' ? 'Dark' : 'Light'}
-              </span>
-            </button>
+            <div className="header-actions">
+              <button
+                type="button"
+                className="puzzle-action puzzle-action-shuffle"
+                onClick={handleShufflePieces}
+                aria-label="Shuffle unscrambled pieces"
+              >
+                Shuffle pieces
+              </button>
+              <button
+                type="button"
+                className="puzzle-action puzzle-action-clear"
+                onClick={handleClearPuzzle}
+                aria-label="Clear puzzle and start over"
+              >
+                Clear puzzle
+              </button>
+              <button
+                type="button"
+                className="theme-toggle"
+                onClick={handleToggleTheme}
+                aria-label={
+                  theme === 'dark'
+                    ? 'Switch to light theme'
+                    : 'Switch to dark theme'
+                }
+                aria-pressed={theme === 'dark'}
+              >
+                <span className="theme-toggle-label">Theme</span>
+                <span className="theme-toggle-value">
+                  {theme === 'dark' ? 'Dark' : 'Light'}
+                </span>
+              </button>
+            </div>
           </div>
         </header>
 
@@ -294,6 +331,8 @@ function App() {
                   }}
                   visitorId={visitorId}
                   forceCompleteSignal={forceCompleteSignal}
+                  forceShuffleSignal={forceShuffleSignal}
+                  forceClearSignal={forceClearSignal}
                   onPuzzleStarted={() => {
                     if (hasEmittedPuzzleStarted) return
                     const now =

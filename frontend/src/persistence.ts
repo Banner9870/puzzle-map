@@ -1,12 +1,16 @@
+/** @deprecated Legacy format; we now only persist locked piece ids. */
 export type StoredPieceState = {
   id: string
-  currentCenterX: number
-  currentCenterY: number
-  isLocked: boolean
+  currentCenterX?: number
+  currentCenterY?: number
+  isLocked?: boolean
 }
 
 export type PuzzleState = {
   completed: boolean
+  /** Persisted: only which pieces are snapped in place. Positions recomputed on load. */
+  lockedPieceIds?: string[]
+  /** @deprecated Legacy; used only when loading old saves. */
   placedPieces?: StoredPieceState[]
 }
 
@@ -101,5 +105,14 @@ export function loadPuzzleState(visitorId: string): PuzzleState | null {
 export function savePuzzleState(visitorId: string, state: PuzzleState) {
   const key = getPuzzleStateKey(visitorId)
   writeLocalStorage(key, JSON.stringify(state))
+}
+
+export function clearPuzzleState(visitorId: string) {
+  if (typeof window === 'undefined') return
+  try {
+    window.localStorage.removeItem(getPuzzleStateKey(visitorId))
+  } catch {
+    // ignore
+  }
 }
 

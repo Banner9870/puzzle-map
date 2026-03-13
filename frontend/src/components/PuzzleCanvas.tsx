@@ -5,7 +5,6 @@ import {
   loadPuzzleState,
   savePuzzleState,
   type PuzzleState,
-  type StoredPieceState,
 } from '../persistence'
 
 type NeighborhoodFeature = {
@@ -48,9 +47,114 @@ type PuzzleCanvasProps = {
   onPuzzleStarted?: () => void
   onMove?: () => void
   forceCompleteSignal?: number
+  /** Increment to re-scatter all unlocked pieces (e.g. after resize or to shuffle). */
+  forceShuffleSignal?: number
+  /** Increment to clear progress and re-scatter all pieces. */
+  forceClearSignal?: number
 }
 
 const SNAP_TOLERANCE = 24
+const SCATTER_MARGIN = 16
+const SCATTER_GAP = 24
+
+function getScatterPosition(
+  piece: {
+    minX: number
+    maxX: number
+    minY: number
+    maxY: number
+    targetCenterX: number
+    targetCenterY: number
+  },
+  cityBounds: { minX: number; minY: number; maxX: number; maxY: number },
+  width: number,
+  height: number,
+): { x: number; y: number } {
+  const halfW = (piece.maxX - piece.minX) / 2
+  const halfH = (piece.maxY - piece.minY) / 2
+  const { minX: cityLeft, maxX: cityRight, minY: cityTop, maxY: cityBottom } =
+    cityBounds
+  const positions: { x: number; y: number }[] = []
+
+  const topMinY = SCATTER_MARGIN + halfH
+  const topMaxY = cityTop - SCATTER_GAP - halfH
+  if (topMaxY > topMinY) {
+    positions.push({
+      x:
+        SCATTER_MARGIN +
+        halfW +
+        Math.random() * Math.max(0, width - 2 * (SCATTER_MARGIN + halfW)),
+      y: topMinY + Math.random() * (topMaxY - topMinY),
+    })
+  }
+  const bottomMaxY = height - SCATTER_MARGIN - halfH
+  const bottomMinY = cityBottom + SCATTER_GAP + halfH
+  if (bottomMaxY > bottomMinY) {
+    positions.push({
+      x:
+        SCATTER_MARGIN +
+        halfW +
+        Math.random() * Math.max(0, width - 2 * (SCATTER_MARGIN + halfW)),
+      y: bottomMinY + Math.random() * (bottomMaxY - bottomMinY),
+    })
+  }
+  const leftMinX = SCATTER_MARGIN + halfW
+  const leftMaxX = cityLeft - SCATTER_GAP - halfW
+  if (leftMaxX > leftMinX) {
+    positions.push({
+      x: leftMinX + Math.random() * (leftMaxX - leftMinX),
+      y:
+        SCATTER_MARGIN +
+        halfH +
+        Math.random() *
+          Math.max(0, height - 2 * (SCATTER_MARGIN + halfH)),
+    })
+  }
+  const rightMaxX = width - SCATTER_MARGIN - halfW
+  const rightMinX = cityRight + SCATTER_GAP + halfW
+  if (rightMaxX > rightMinX) {
+    positions.push({
+      x: rightMinX + Math.random() * (rightMaxX - rightMinX),
+      y:
+        SCATTER_MARGIN +
+        halfH +
+        Math.random() *
+          Math.max(0, height - 2 * (SCATTER_MARGIN + halfH)),
+    })
+  }
+
+  let x: number
+  let y: number
+  if (positions.length > 0) {
+    const choice = positions[Math.floor(Math.random() * positions.length)]
+    x = choice.x
+    y = choice.y
+  } else {
+    x =
+      SCATTER_MARGIN +
+      halfW +
+      Math.random() * Math.max(0, width - 2 * (SCATTER_MARGIN + halfW))
+    y =
+      SCATTER_MARGIN +
+      halfH +
+      Math.random() * Math.max(0, height - 2 * (SCATTER_MARGIN + halfH))
+  }
+
+  const dx = x - piece.targetCenterX
+  const dy = y - piece.targetCenterY
+  const dxClamp = Math.max(
+    -piece.minX,
+    Math.min(width - piece.maxX, dx),
+  )
+  const dyClamp = Math.max(
+    -piece.minY,
+    Math.min(height - piece.maxY, dy),
+  )
+  return {
+    x: piece.targetCenterX + dxClamp,
+    y: piece.targetCenterY + dyClamp,
+  }
+}
 
 function getCssColor(variableName: string, fallback: string): string {
   if (typeof window === 'undefined') return fallback
@@ -94,6 +198,8 @@ export function PuzzleCanvas({
   onPuzzleStarted,
   onMove,
   forceCompleteSignal,
+  forceShuffleSignal = 0,
+  forceClearSignal = 0,
 }: PuzzleCanvasProps) {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const svgRef = useRef<SVGSVGElement | null>(null)
@@ -109,33 +215,31 @@ export function PuzzleCanvas({
   )
   const dragStartedRef = useRef(false)
   const hasReportedPuzzleStartedRef = useRef(false)
+  const piecesRef = useRef<PieceState[]>([])
+  piecesRef.current = pieces
 
   const applyStoredState = useCallback(
     (basePieces: PieceState[], stored: PuzzleState | null): PieceState[] => {
       if (!stored) return basePieces
-      const map = new Map<string, StoredPieceState>()
-      for (const entry of stored.placedPieces ?? []) {
-        map.set(entry.id, entry)
-      }
-      const next = basePieces.map((piece) => {
-        const storedPiece = map.get(piece.id)
-        if (!storedPiece) return piece
-        return {
-          ...piece,
-          currentCenterX: storedPiece.currentCenterX,
-          currentCenterY: storedPiece.currentCenterY,
-          isLocked: storedPiece.isLocked,
-        }
-      })
+      // New format: only locked piece ids. Legacy: derive from placedPieces.
+      let lockedIds = new Set<string>(
+        stored.lockedPieceIds ??
+          (stored.placedPieces ?? [])
+            .filter((p) => p.isLocked !== false)
+            .map((p) => p.id),
+      )
       if (stored.completed) {
-        return next.map((piece) => ({
+        lockedIds = new Set(basePieces.map((p) => p.id))
+      }
+      return basePieces.map((piece) => {
+        if (!lockedIds.has(piece.id)) return piece
+        return {
           ...piece,
           currentCenterX: piece.targetCenterX,
           currentCenterY: piece.targetCenterY,
           isLocked: true,
-        }))
-      }
-      return next
+        }
+      })
     },
     [],
   )
@@ -236,8 +340,8 @@ export function PuzzleCanvas({
 
           const pieceWidth = maxX - minX
           const pieceHeight = maxY - minY
-          const margin = 16
-          const gap = 24
+          const margin = SCATTER_MARGIN
+          const gap = SCATTER_GAP
           const halfW = pieceWidth / 2
           const halfH = pieceHeight / 2
 
@@ -370,18 +474,9 @@ export function PuzzleCanvas({
 
   useEffect(() => {
     if (!visitorId || pieces.length === 0) return
-    const storedPieces: StoredPieceState[] = pieces.map((piece) => ({
-      id: piece.id,
-      currentCenterX: piece.currentCenterX,
-      currentCenterY: piece.currentCenterY,
-      isLocked: piece.isLocked,
-    }))
     const completed = pieces.every((p) => p.isLocked)
-    const state: PuzzleState = {
-      completed,
-      placedPieces: storedPieces,
-    }
-    savePuzzleState(visitorId, state)
+    const lockedPieceIds = pieces.filter((p) => p.isLocked).map((p) => p.id)
+    savePuzzleState(visitorId, { completed, lockedPieceIds })
   }, [pieces, visitorId])
 
   // When an admin override is triggered, snap all pieces into place,
@@ -400,6 +495,69 @@ export function PuzzleCanvas({
       onCompleted?.()
     })
   }, [forceCompleteSignal, pieces.length, onCompleted])
+
+  const shuffleSignalRef = useRef(0)
+  const clearSignalRef = useRef(0)
+
+  // Shuffle: re-scatter unlocked pieces only (positions adapt to current dimensions).
+  useEffect(() => {
+    if (forceShuffleSignal === shuffleSignalRef.current) return
+    shuffleSignalRef.current = forceShuffleSignal
+    const current = piecesRef.current
+    if (current.length === 0 || dimensions.width <= 1) return
+    const cityBounds = {
+      minX: Math.min(...current.map((p) => p.minX)),
+      minY: Math.min(...current.map((p) => p.minY)),
+      maxX: Math.max(...current.map((p) => p.maxX)),
+      maxY: Math.max(...current.map((p) => p.maxY)),
+    }
+    setPieces((prev) =>
+      prev.map((piece) => {
+        if (piece.isLocked) return piece
+        const pos = getScatterPosition(
+          piece,
+          cityBounds,
+          dimensions.width,
+          dimensions.height,
+        )
+        return {
+          ...piece,
+          currentCenterX: pos.x,
+          currentCenterY: pos.y,
+        }
+      }),
+    )
+  }, [forceShuffleSignal, dimensions.width, dimensions.height])
+
+  // Clear: unlock all and re-scatter all pieces.
+  useEffect(() => {
+    if (forceClearSignal === clearSignalRef.current) return
+    clearSignalRef.current = forceClearSignal
+    const current = piecesRef.current
+    if (current.length === 0 || dimensions.width <= 1) return
+    const cityBounds = {
+      minX: Math.min(...current.map((p) => p.minX)),
+      minY: Math.min(...current.map((p) => p.minY)),
+      maxX: Math.max(...current.map((p) => p.maxX)),
+      maxY: Math.max(...current.map((p) => p.maxY)),
+    }
+    setPieces((prev) =>
+      prev.map((piece) => {
+        const pos = getScatterPosition(
+          piece,
+          cityBounds,
+          dimensions.width,
+          dimensions.height,
+        )
+        return {
+          ...piece,
+          currentCenterX: pos.x,
+          currentCenterY: pos.y,
+          isLocked: false,
+        }
+      }),
+    )
+  }, [forceClearSignal, dimensions.width, dimensions.height])
 
   const getSvgPoint = useCallback((clientX: number, clientY: number) => {
     const svg = svgRef.current

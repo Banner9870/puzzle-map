@@ -17,6 +17,33 @@
   gap: 1rem;
 }
 
+.header-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.puzzle-action {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.4rem 0.75rem;
+  font-size: 0.8rem;
+  line-height: 1.2;
+  background-color: var(--surface-elevated);
+  color: var(--text-body);
+  border-radius: 999px;
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-soft);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.puzzle-action:hover {
+  background-color: var(--bg-primary);
+}
+
 .theme-toggle {
   display: inline-flex;
   align-items: center;
