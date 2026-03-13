@@ -235,6 +235,13 @@ button:focus-visible {
   color: var(--text-body);
 }
 
+@media (min-width: 768px) {
+  .puzzle-shell-caption {
+    padding-left: var(--space-page-horizontal);
+    padding-right: var(--space-page-horizontal);
+  }
+}
+
 /* Hint line (e.g. "You last tapped X") — more visible, centered in tile */
 .puzzle-shell-caption--hint {
   display: flex;
@@ -252,6 +259,7 @@ button:focus-visible {
 
 .puzzle-shell-caption--hint strong {
   color: var(--text-headline);
+  margin-left: 0.35em;
 }
 
 @media (max-width: 599px) {

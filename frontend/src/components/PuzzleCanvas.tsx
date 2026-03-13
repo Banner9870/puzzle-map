@@ -773,9 +773,6 @@ export function PuzzleCanvas({
     [pieces, draggingPieceId, onNeighborhoodTap, onCompleted, onMove],
   )
 
-  const pieceFill = getCssColor('--brand-red', '#ed0000')
-  const pieceStroke = getCssColor('--map-outline', '#9ca3af')
-  const outlineStroke = getCssColor('--map-outline', '#9ca3af')
   const isNarrow = dimensions.width < 600
   const pieceStrokeWidth = isNarrow ? 1.2 : 1.8
   const outlineStrokeWidth = isNarrow ? 1.2 : 1.6
@@ -850,7 +847,7 @@ export function PuzzleCanvas({
             className="puzzle-outline"
             d={outlinePath}
             fill="none"
-            stroke={outlineStroke}
+            stroke="var(--map-outline, #9ca3af)"
             strokeWidth={outlineStrokeWidth}
             strokeOpacity={0.75}
             style={{ pointerEvents: 'none' }}
@@ -912,9 +909,9 @@ export function PuzzleCanvas({
                 />
                 <path
                   d={piece.pathString}
-                  fill={pieceFill}
+                  fill="var(--brand-red, #ed0000)"
                   fillOpacity={isSnapped ? 0.55 : 0.3}
-                  stroke={pieceStroke}
+                  stroke="var(--map-outline, #9ca3af)"
                   strokeWidth={isSnapped ? pieceStrokeWidth + 0.5 : pieceStrokeWidth}
                   style={{
                     cursor: piece.isLocked ? 'default' : 'grab',
