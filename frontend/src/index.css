@@ -257,14 +257,14 @@ button:focus-visible {
   }
 }
 
-/* Footer — CPM / WBEZ style: multi-column links, logo, copyright row */
+/* Footer — CPM / WBEZ style: multi-column links, logo, copyright row. Always dark theme so the white CPM logo is legible. */
 .page-footer {
   margin-top: 2.5rem;
   padding: 2rem var(--space-page-horizontal) 1.5rem;
-  background-color: var(--surface-elevated);
-  border-top: 1px solid var(--border-color);
+  background-color: #0b1120;
+  border-top: 1px solid #1f2937;
   font-size: 0.8rem;
-  color: var(--text-body);
+  color: #9ca3af;
   line-height: 1.5;
 }
 
@@ -282,7 +282,7 @@ button:focus-visible {
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--text-headline);
+  color: #e5e7eb;
   margin: 0 0 0.5rem;
 }
 
@@ -297,7 +297,7 @@ button:focus-visible {
 }
 
 .page-footer-links a {
-  color: var(--text-body);
+  color: #9ca3af;
   text-decoration: none;
 }
 
@@ -321,7 +321,7 @@ button:focus-visible {
   max-width: var(--page-max-width);
   margin: 0 auto;
   padding-top: 1rem;
-  border-top: 1px solid var(--border-color);
+  border-top: 1px solid #1f2937;
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
@@ -340,17 +340,18 @@ button:focus-visible {
 }
 
 .page-footer-copy--muted {
-  color: var(--text-body);
+  color: #9ca3af;
   opacity: 0.9;
 }
 
 .page-footer-legal {
   margin: 0;
   font-size: 0.75rem;
+  color: #9ca3af;
 }
 
 .page-footer-legal a {
-  color: var(--text-body);
+  color: #9ca3af;
   text-decoration: none;
 }
 
@@ -365,7 +366,7 @@ button:focus-visible {
 
 .page-footer-copy a,
 .page-footer-copy strong {
-  color: var(--text-headline);
+  color: #e5e7eb;
 }
 
 :root[data-theme='dark'] {

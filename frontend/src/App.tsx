@@ -8,7 +8,6 @@ import { PuzzleCanvas } from './components/PuzzleCanvas'
 import { copy } from './content'
 import {
   clearPuzzleState,
-  getEmailSubmitted,
   getOrCreateVisitorId,
   loadPuzzleState,
   setEmailSubmitted,
@@ -69,8 +68,6 @@ function App() {
   const [forceCompleteSignal, setForceCompleteSignal] = useState(0)
   const [forceShuffleSignal, setForceShuffleSignal] = useState(0)
   const [forceClearSignal, setForceClearSignal] = useState(0)
-  const [hasDismissedCompletionModal, setHasDismissedCompletionModal] =
-    useState(false)
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme
@@ -92,8 +89,7 @@ function App() {
     const stored = loadPuzzleState(id)
     const completedFromStorage = stored?.completed ?? false
     setIsCompleted(completedFromStorage)
-    const alreadySubmittedEmail = getEmailSubmitted(id)
-    if (completedFromStorage && !alreadySubmittedEmail) {
+    if (completedFromStorage) {
       setIsCompletionModalOpen(true)
     }
 
@@ -333,12 +329,7 @@ function App() {
                   onNeighborhoodTap={(name) => setLastNeighborhood(name)}
                   onCompleted={() => {
                     setIsCompleted(true)
-                    if (
-                      !getEmailSubmitted(visitorId ?? '') &&
-                      !hasDismissedCompletionModal
-                    ) {
-                      setIsCompletionModalOpen(true)
-                    }
+                    setIsCompletionModalOpen(true)
                     const deviceType = detectDeviceType()
                     const orientation = detectOrientation()
                     const now =
@@ -451,7 +442,6 @@ function App() {
                       e.preventDefault()
                       e.stopPropagation()
                       setIsCompletionModalOpen(false)
-                      setHasDismissedCompletionModal(true)
                     }}
                   >
                     {copy.secondaryButton}
