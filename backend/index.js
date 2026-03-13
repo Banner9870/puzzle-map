@@ -40,6 +40,27 @@ app.use((req, res, next) => {
   next()
 })
 
+// Very lightweight in-memory rate limiting for the email capture endpoint.
+// This is intentionally simple for the prototype and guards against bursts.
+const RATE_LIMIT_WINDOW_MS = 60_000
+const RATE_LIMIT_MAX_REQUESTS = 20
+// Map<key, { count: number, windowStart: number }>
+const rateLimitStore = new Map()
+
+function checkRateLimit(key) {
+  const now = Date.now()
+  const existing = rateLimitStore.get(key)
+  if (!existing || now - existing.windowStart > RATE_LIMIT_WINDOW_MS) {
+    rateLimitStore.set(key, { count: 1, windowStart: now })
+    return true
+  }
+  if (existing.count >= RATE_LIMIT_MAX_REQUESTS) {
+    return false
+  }
+  existing.count += 1
+  return true
+}
+
 app.get('/healthz', (_req, res) => {
   res.json({ status: 'ok' })
 })
@@ -49,6 +70,17 @@ app.post('/api/early-access', async (req, res) => {
     return res
       .status(500)
       .json({ error: 'Service not configured; missing DATABASE_URL.' })
+  }
+
+  const ip =
+    (req.headers['x-forwarded-for'] || '').toString().split(',')[0].trim() ||
+    req.ip ||
+    'unknown'
+  const uuidForRate = typeof req.body?.uuid === 'string' ? req.body.uuid : ''
+  const rateKey = uuidForRate ? `${ip}:${uuidForRate}` : ip
+
+  if (!checkRateLimit(rateKey)) {
+    return res.status(429).json({ error: 'Too many requests. Please slow down.' })
   }
 
   const {

@@ -46,6 +46,7 @@ type PuzzleCanvasProps = {
   visitorId?: string | null
   onPuzzleStarted?: () => void
   onMove?: () => void
+  forceCompleteSignal?: number
 }
 
 const SNAP_TOLERANCE = 24
@@ -91,6 +92,7 @@ export function PuzzleCanvas({
   visitorId,
   onPuzzleStarted,
   onMove,
+  forceCompleteSignal,
 }: PuzzleCanvasProps) {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const svgRef = useRef<SVGSVGElement | null>(null)
@@ -366,6 +368,23 @@ export function PuzzleCanvas({
     }
     savePuzzleState(visitorId, state)
   }, [pieces, visitorId])
+
+  // When an admin override is triggered, snap all pieces into place,
+  // mark them locked, and emit completion through the existing callback.
+  useEffect(() => {
+    if (!forceCompleteSignal || pieces.length === 0) return
+    setPieces((prev) =>
+      prev.map((piece) => ({
+        ...piece,
+        currentCenterX: piece.targetCenterX,
+        currentCenterY: piece.targetCenterY,
+        isLocked: true,
+      })),
+    )
+    queueMicrotask(() => {
+      onCompleted?.()
+    })
+  }, [forceCompleteSignal, pieces.length, onCompleted])
 
   const getSvgPoint = useCallback((clientX: number, clientY: number) => {
     const svg = svgRef.current

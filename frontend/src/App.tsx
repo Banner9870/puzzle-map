@@ -53,6 +53,7 @@ function App() {
   const [titleClickWindowStart, setTitleClickWindowStart] = useState<
     number | null
   >(null)
+  const [forceCompleteSignal, setForceCompleteSignal] = useState(0)
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme
@@ -211,6 +212,7 @@ function App() {
       const deviceType = detectDeviceType()
       const orientation = detectOrientation()
       trackOverrideJumpToComplete({ deviceType, orientation })
+      setForceCompleteSignal((value) => value + 1)
       setIsCompleted(true)
       setIsCompletionModalOpen(true)
     }
@@ -290,6 +292,7 @@ function App() {
                     })
                   }}
                   visitorId={visitorId}
+                  forceCompleteSignal={forceCompleteSignal}
                   onPuzzleStarted={() => {
                     if (hasEmittedPuzzleStarted) return
                     const now =
