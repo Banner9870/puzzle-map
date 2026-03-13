@@ -47,9 +47,11 @@
 .theme-toggle {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 0.4rem;
   padding: 0.4rem 0.75rem;
   font-size: 0.8rem;
+  font-weight: 600;
   line-height: 1.2;
   background-color: var(--surface-elevated);
   color: var(--text-body);
@@ -62,15 +64,18 @@
   background-color: var(--bg-primary);
 }
 
+.theme-toggle-label,
+.theme-toggle-value {
+  font-size: 0.8rem;
+  font-weight: 600;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+}
+
 .theme-toggle-label {
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  font-weight: 600;
-  font-size: 0.68rem;
-}
-
-.theme-toggle-value {
-  font-weight: 600;
 }
 
 .completion-modal-backdrop {

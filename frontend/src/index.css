@@ -229,15 +229,16 @@ button:focus-visible {
   color: var(--text-body);
 }
 
-/* Hint line (e.g. "You last tapped X") — more visible */
+/* Hint line (e.g. "You last tapped X") — more visible, centered in tile */
 .puzzle-shell-caption--hint {
   background: var(--surface-elevated);
-  padding: 0.5rem 0.75rem;
+  padding: 0.6rem 1rem;
   margin-top: 0.75rem;
   border-radius: var(--radius);
   border: 1px solid var(--border-color);
   font-weight: 500;
   font-size: 1rem;
+  text-align: center;
 }
 
 .puzzle-shell-caption--hint strong {

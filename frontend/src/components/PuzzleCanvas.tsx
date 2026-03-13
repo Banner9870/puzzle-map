@@ -667,8 +667,11 @@ export function PuzzleCanvas({
       setDraggingPieceId(id)
       setIsDragMoving(false)
       dragStartedRef.current = false
+      if (piece.name) {
+        onNeighborhoodTap?.(piece.name)
+      }
     },
-    [pieces, getSvgPoint],
+    [pieces, getSvgPoint, onNeighborhoodTap],
   )
 
   const handlePointerMove = useCallback(
@@ -754,9 +757,12 @@ export function PuzzleCanvas({
         }
         setSnappedPieceId(id)
         if (snapped) {
+          if (typeof navigator !== 'undefined' && navigator.vibrate) {
+            navigator.vibrate(10)
+          }
           window.setTimeout(() => {
             setSnappedPieceId((current) => (current === id ? null : current))
-          }, 120)
+          }, 250)
         }
         return next
       })
@@ -869,12 +875,17 @@ export function PuzzleCanvas({
             const ty = piece.targetCenterY
             const isSnapped = snappedPieceId === piece.id
             const liftScale =
-              isDragging ? (isDragMoving ? 1.06 : 1.04) : isSnapped ? 1.04 : 1
+              isDragging ? (isDragMoving ? 1.06 : 1.04) : isSnapped ? 1.08 : 1
             const transform = isDragging
               ? `translate(${dx + tx}, ${dy + ty}) scale(${liftScale}) translate(${-tx}, ${-ty})`
               : isSnapped
                 ? `translate(${dx + tx}, ${dy + ty}) scale(${liftScale}) translate(${-tx}, ${-ty})`
                 : `translate(${dx}, ${dy})`
+            const snapTransition = 'transform 200ms ease-out'
+            const defaultTransition =
+              isDragging && !isDragMoving
+                ? 'transform 0ms'
+                : 'transform 80ms ease-out, filter 80ms ease-out'
             return (
               <g
                 key={piece.id}
@@ -884,10 +895,7 @@ export function PuzzleCanvas({
                   cursor: piece.isLocked ? 'default' : 'grab',
                   pointerEvents: piece.isLocked ? 'none' : 'auto',
                   filter: piece.isLocked ? undefined : 'url(#piece-drop-shadow)',
-                  transition:
-                    isDragging && !isDragMoving
-                      ? 'transform 0ms'
-                      : 'transform 80ms ease-out, filter 80ms ease-out',
+                  transition: isSnapped ? snapTransition : defaultTransition,
                 }}
                 onPointerDown={handlePointerDown}
                 onPointerMove={handlePointerMove}
@@ -905,11 +913,14 @@ export function PuzzleCanvas({
                 <path
                   d={piece.pathString}
                   fill={pieceFill}
-                  fillOpacity={0.3}
+                  fillOpacity={isSnapped ? 0.55 : 0.3}
                   stroke={pieceStroke}
-                  strokeWidth={pieceStrokeWidth}
+                  strokeWidth={isSnapped ? pieceStrokeWidth + 0.5 : pieceStrokeWidth}
                   style={{
                     cursor: piece.isLocked ? 'default' : 'grab',
+                    transition: isSnapped
+                      ? 'fill-opacity 200ms ease-out, stroke-width 200ms ease-out'
+                      : undefined,
                   }}
                   aria-label={piece.name}
                 />
