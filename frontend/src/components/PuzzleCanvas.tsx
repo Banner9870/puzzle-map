@@ -52,6 +52,19 @@ type PuzzleCanvasProps = {
 
 const SNAP_TOLERANCE = 24
 
+const DOTS = ['.', '..', '...']
+
+function LoadingDots() {
+  const [step, setStep] = useState(0)
+  useEffect(() => {
+    const id = setInterval(() => {
+      setStep((s) => (s + 1) % DOTS.length)
+    }, 400)
+    return () => clearInterval(id)
+  }, [])
+  return <span className="puzzle-loading-dots" aria-hidden="true">{DOTS[step]}</span>
+}
+
 function getCssColor(variableName: string, fallback: string): string {
   if (typeof window === 'undefined') return fallback
   const value = getComputedStyle(document.documentElement).getPropertyValue(
@@ -555,6 +568,7 @@ export function PuzzleCanvas({
         <div className="puzzle-loading-overlay" aria-hidden="true">
           <span className="puzzle-loading-text">
             {copy.loadingNeighborhoods}
+            <LoadingDots />
           </span>
         </div>
       )}
@@ -627,6 +641,15 @@ export function PuzzleCanvas({
                 onPointerMove={handlePointerMove}
                 onPointerUp={handlePointerUp}
               >
+                {/* Barely-visible wide stroke to enlarge touch target on mobile */}
+                <path
+                  d={piece.pathString}
+                  fill="none"
+                  stroke="rgba(0,0,0,0.004)"
+                  strokeWidth={28}
+                  style={{ pointerEvents: 'auto' }}
+                  aria-hidden="true"
+                />
                 <path
                   d={piece.pathString}
                   fill={pieceFill}
