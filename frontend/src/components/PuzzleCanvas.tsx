@@ -238,6 +238,8 @@ export function PuzzleCanvas({
   const [dragOffset, setDragOffset] = useState<{ x: number; y: number } | null>(
     null,
   )
+  /** Back-to-front order of unlocked piece ids; used for draw order and tap-to-cycle. */
+  const [unlockedOrder, setUnlockedOrder] = useState<string[]>([])
   const dragStartedRef = useRef(false)
   const hasReportedPuzzleStartedRef = useRef(false)
   const piecesRef = useRef<PieceState[]>([])
@@ -517,6 +519,9 @@ export function PuzzleCanvas({
         }
 
         setPieces(piecesState)
+        setUnlockedOrder(
+          piecesState.filter((p) => !p.isLocked).map((p) => p.id),
+        )
         setIsReady(true)
       } catch (err) {
         if (!cancelled) {
@@ -600,8 +605,8 @@ export function PuzzleCanvas({
       maxX: Math.max(...current.map((p) => p.maxX)),
       maxY: Math.max(...current.map((p) => p.maxY)),
     }
-    setPieces((prev) =>
-      prev.map((piece) => {
+    setPieces((prev) => {
+      const next = prev.map((piece) => {
         const pos = getScatterPosition(
           piece,
           cityBounds,
@@ -614,8 +619,10 @@ export function PuzzleCanvas({
           currentCenterY: pos.y,
           isLocked: false,
         }
-      }),
-    )
+      })
+      setUnlockedOrder(next.map((p) => p.id))
+      return next
+    })
   }, [forceClearSignal, dimensions.width, dimensions.height])
 
   const getSvgPoint = useCallback((clientX: number, clientY: number) => {
@@ -705,8 +712,15 @@ export function PuzzleCanvas({
       const wasDrag = dragStartedRef.current
       dragStartedRef.current = false
 
-      if (!dragStartedRef.current && piece.name) {
+      if (!wasDrag && piece.name) {
         onNeighborhoodTap?.(piece.name)
+        if (!piece.isLocked) {
+          setUnlockedOrder((order) => {
+            const i = order.indexOf(id)
+            if (i <= 0) return order
+            return [id, ...order.slice(0, i), ...order.slice(i + 1)]
+          })
+        }
       }
 
       if (draggingPieceId !== id) return
@@ -723,6 +737,7 @@ export function PuzzleCanvas({
         const distance = Math.sqrt(dx * dx + dy * dy)
         if (distance > SNAP_TOLERANCE) return prev
         snapped = true
+        setUnlockedOrder((order) => order.filter((pid) => pid !== id))
         const next = prev.map((pieceState) =>
           pieceState.id === id
             ? {
@@ -737,11 +752,11 @@ export function PuzzleCanvas({
         if (allLocked) {
           queueMicrotask(() => onCompleted?.())
         }
+        setSnappedPieceId(id)
         if (snapped) {
-          setSnappedPieceId(id)
           window.setTimeout(() => {
             setSnappedPieceId((current) => (current === id ? null : current))
-          }, 200)
+          }, 120)
         }
         return next
       })
@@ -755,6 +770,9 @@ export function PuzzleCanvas({
   const pieceFill = getCssColor('--brand-red', '#ed0000')
   const pieceStroke = getCssColor('--map-outline', '#9ca3af')
   const outlineStroke = getCssColor('--map-outline', '#9ca3af')
+  const isNarrow = dimensions.width < 600
+  const pieceStrokeWidth = isNarrow ? 1.2 : 1.8
+  const outlineStrokeWidth = isNarrow ? 1.2 : 1.6
 
   if (loadError) {
     return (
@@ -827,7 +845,7 @@ export function PuzzleCanvas({
             d={outlinePath}
             fill="none"
             stroke={outlineStroke}
-            strokeWidth={1.6}
+            strokeWidth={outlineStrokeWidth}
             strokeOpacity={0.75}
             style={{ pointerEvents: 'none' }}
             aria-hidden="true"
@@ -835,14 +853,13 @@ export function PuzzleCanvas({
         )}
         {[...pieces]
           .sort((a, b) => {
-            // Draw locked pieces first (bottom), then unlocked (top), so overlapping
-            // unscrambled pieces are always grabbable on top of snapped ones (Safari/mobile).
             if (a.isLocked && !b.isLocked) return -1
             if (!a.isLocked && b.isLocked) return 1
-            // Among unlocked, bring dragging piece to front
             if (a.id === draggingPieceId) return 1
             if (b.id === draggingPieceId) return -1
-            return 0
+            const ai = unlockedOrder.indexOf(a.id)
+            const bi = unlockedOrder.indexOf(b.id)
+            return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi)
           })
           .map((piece) => {
             const dx = piece.currentCenterX - piece.targetCenterX
@@ -867,7 +884,10 @@ export function PuzzleCanvas({
                   cursor: piece.isLocked ? 'default' : 'grab',
                   pointerEvents: piece.isLocked ? 'none' : 'auto',
                   filter: piece.isLocked ? undefined : 'url(#piece-drop-shadow)',
-                  transition: 'transform 160ms ease-out, filter 160ms ease-out',
+                  transition:
+                    isDragging && !isDragMoving
+                      ? 'transform 0ms'
+                      : 'transform 80ms ease-out, filter 80ms ease-out',
                 }}
                 onPointerDown={handlePointerDown}
                 onPointerMove={handlePointerMove}
@@ -887,7 +907,7 @@ export function PuzzleCanvas({
                   fill={pieceFill}
                   fillOpacity={0.3}
                   stroke={pieceStroke}
-                  strokeWidth={1.8}
+                  strokeWidth={pieceStrokeWidth}
                   style={{
                     cursor: piece.isLocked ? 'default' : 'grab',
                   }}
