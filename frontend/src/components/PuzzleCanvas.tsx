@@ -550,6 +550,13 @@ export function PuzzleCanvas({
       className="puzzle-canvas-wrapper"
       aria-busy={!isReady}
     >
+      {!isReady && !loadError && (
+        <div className="puzzle-loading-overlay" aria-hidden="true">
+          <span className="puzzle-loading-text">
+            Loading Chicago neighborhoods…
+          </span>
+        </div>
+      )}
       <svg
         ref={svgRef}
         className="puzzle-svg"
@@ -584,7 +591,7 @@ export function PuzzleCanvas({
             d={outlinePath}
             fill="none"
             stroke={outlineStroke}
-            strokeWidth={2}
+            strokeWidth={1.6}
             strokeOpacity={0.75}
           />
         )}
@@ -624,7 +631,7 @@ export function PuzzleCanvas({
                   fill={pieceFill}
                   fillOpacity={0.3}
                   stroke={pieceStroke}
-                  strokeWidth={2.6}
+                  strokeWidth={1.8}
                   style={{
                     cursor: piece.isLocked ? 'default' : 'grab',
                   }}
