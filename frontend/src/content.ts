@@ -4,8 +4,7 @@
  */
 export const copy = {
   headline: "Let's build a better Chicago together.",
-  subheadline:
-    "Every Chicago neighborhood is a piece of the puzzle. Help us put it together.",
+  subheadline: "Every Chicago neighborhood is a piece of the puzzle.",
 
   puzzleInstruction:
     "Drag each neighborhood back into place to complete the map. Pieces will gently snap into the outline when you're close enough.",

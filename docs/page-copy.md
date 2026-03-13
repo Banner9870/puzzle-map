@@ -11,7 +11,7 @@ Use this file to see and change all user-facing copy in one place. After editing
 | Key | Value |
 |-----|--------|
 | **headline** | Let's build a better Chicago together. |
-| **subheadline** | Every Chicago neighborhood is a piece of the puzzle. Help us put it together. |
+| **subheadline** | Every Chicago neighborhood is a piece of the puzzle. |
 
 ---
 
