@@ -1,6 +1,7 @@
 import './App.css'
 import { useEffect, useState } from 'react'
 import { PuzzleCanvas } from './components/PuzzleCanvas'
+import { copy } from './content'
 import { getOrCreateVisitorId, loadPuzzleState } from './persistence'
 import {
   detectDeviceType,
@@ -62,6 +63,7 @@ function App() {
   useEffect(() => {
     const result = getOrCreateVisitorId()
     if (!result) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setHasHydratedVisitor(true)
       return
     }
@@ -99,10 +101,10 @@ function App() {
 
   const validateEmail = (value: string): string | null => {
     const trimmed = value.trim()
-    if (!trimmed) return 'Please enter an email address.'
+    if (!trimmed) return copy.emailRequired
     // Simple but effective email pattern for prototype.
     const pattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!pattern.test(trimmed)) return 'That email address does not look valid.'
+    if (!pattern.test(trimmed)) return copy.emailInvalid
     return null
   }
 
@@ -111,7 +113,7 @@ function App() {
   ) => {
     event.preventDefault()
     if (!visitorId) {
-      setEmailError('Something went wrong identifying this session. Please reload.')
+      setEmailError(copy.sessionError)
       setEmailStatus('error')
       return
     }
@@ -171,7 +173,7 @@ function App() {
 
       if (!response.ok) {
         setEmailStatus('error')
-        setEmailError('We could not save your email. Please try again.')
+        setEmailError(copy.submitError)
         trackEmailSubmitFailure({
           deviceType,
           errorType: 'server',
@@ -186,7 +188,7 @@ function App() {
       })
     } catch {
       setEmailStatus('error')
-      setEmailError('Network error. Please check your connection and try again.')
+      setEmailError(copy.networkError)
       trackEmailSubmitFailure({
         deviceType,
         errorType: 'network',
@@ -222,7 +224,7 @@ function App() {
     return (
       <div className="page">
         <main className="page-inner">
-          <p className="puzzle-shell-caption">Loading puzzle…</p>
+          <p className="puzzle-shell-caption">{copy.loadingPuzzle}</p>
         </main>
       </div>
     )
@@ -238,11 +240,10 @@ function App() {
                 className="page-title"
                 onClick={handleTitleClick}
               >
-                Help us map Chicago together.
+                {copy.headline}
               </h1>
               <p className="page-subtitle">
-                A jigsaw puzzle made from the city&apos;s neighborhoods — a
-                small preview of what we&apos;re building with chicago.com.
+                {copy.subheadline}
               </p>
             </div>
             <button
@@ -316,43 +317,26 @@ function App() {
                 />
               </div>
               <p className="puzzle-shell-caption">
-                Drag each neighborhood back into place to complete the map.
-                Pieces will gently snap into the outline when you&apos;re close
-                enough.
+                {copy.puzzleInstruction}
               </p>
               {lastNeighborhood && (
                 <p className="puzzle-shell-caption">
-                  You last tapped <strong>{lastNeighborhood}</strong>.
+                  {copy.lastTappedPrefix} <strong>{lastNeighborhood}</strong>.
                 </p>
               )}
               {isCompleted && (
                 <p className="puzzle-shell-caption">
-                  Puzzle complete. Check the message below to get early access
-                  updates.
+                  {copy.completionCaption}
                 </p>
               )}
             </section>
           </section>
 
           <aside
-            className="layout-main-sidebar"
-            aria-label="About this puzzle experience"
+            className="layout-main-teaser"
+            aria-label="About this experience"
           >
-            <h2 className="sidebar-title">Why this puzzle?</h2>
-            <p className="sidebar-body">
-              chicago.com is a new way for Chicagoans to see the city, block by
-              block. This prototype turns the city&apos;s official community
-              areas into a hands-on map you can piece together.
-            </p>
-            <p className="sidebar-body">
-              On phones and tablets, the puzzle fills most of the screen so you
-              can drag comfortably. On larger screens, the map sits alongside
-              this explainer so it feels more like a landing page than a toy.
-            </p>
-            <p className="sidebar-body sidebar-body--muted">
-              In a later phase, finishing the puzzle will unlock a short note
-              about the project and an option to get early access updates.
-            </p>
+            <p className="teaser-text">{copy.teaser}</p>
           </aside>
         </section>
 
@@ -365,16 +349,14 @@ function App() {
               aria-labelledby="completion-modal-title"
             >
               <h2 id="completion-modal-title" className="completion-modal-title">
-                You mapped Chicago.
+                {copy.modalTitle}
               </h2>
               <p className="completion-modal-body">
-                We&apos;re building chicago.com as a new way for Chicagoans to
-                see their city, neighborhood by neighborhood. Drop your email
-                below if you&apos;d like early access when it&apos;s ready.
+                {copy.modalBody}
               </p>
               <form className="completion-modal-form" onSubmit={handleSubmitEmail}>
                 <label className="completion-modal-label">
-                  <span className="completion-modal-label-text">Email address</span>
+                  <span className="completion-modal-label-text">{copy.emailLabel}</span>
                   <input
                     type="email"
                     autoComplete="email"
@@ -395,42 +377,109 @@ function App() {
                     disabled={emailStatus === 'submitting'}
                   >
                     {emailStatus === 'submitting'
-                      ? 'Sending…'
-                      : 'Get early access updates'}
+                      ? copy.submitButtonBusy
+                      : copy.submitButton}
                   </button>
                   <button
                     type="button"
                     className="completion-modal-secondary"
                     onClick={() => setIsCompletionModalOpen(false)}
                   >
-                    Maybe later
+                    {copy.secondaryButton}
                   </button>
                 </div>
                 {emailStatus === 'success' && (
                   <p className="completion-modal-success">
-                    Thanks — you&apos;re on the list. We&apos;ll be in touch as
-                    chicago.com takes shape.
+                    {copy.successMessage}
                   </p>
                 )}
               </form>
               <p className="completion-modal-privacy">
-                We&apos;ll only use your email for updates about this project.
-                For full terms and privacy details, see Chicago Public Media&apos;s
-                main site.
+                {copy.privacyNote}
               </p>
             </div>
           </div>
         )}
 
-        <footer className="page-footer">
-          <p>
-            A prototype from <strong>Chicago Public Media</strong>, created to
-            explore what&apos;s possible with chicago.com.
-          </p>
-          <p>
-            Light-touch prototype only; final experience will follow full terms
-            and privacy standards on the main site.
-          </p>
+        <footer className="page-footer" role="contentinfo">
+          <div className="page-footer-grid">
+            <div className="page-footer-col">
+              <h3 className="page-footer-col-title">Chicago Public Media</h3>
+              <ul className="page-footer-links">
+                <li>
+                  <a
+                    href="https://www.wbez.org/pages/public-financial-documents"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Public and Financial Documents
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="https://wbez.org/about"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    About WBEZ
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="http://suntimes.com/about"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    About the Sun-Times
+                  </a>
+                </li>
+              </ul>
+            </div>
+          </div>
+          <div className="page-footer-logo-wrap">
+            <a
+              href="https://www.chicagopublicmedia.org/"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <img
+                src="/cpm-logo-footer.svg"
+                alt="Chicago Public Media"
+                className="page-footer-logo"
+                width={156}
+                height={29}
+              />
+            </a>
+          </div>
+          <div className="page-footer-bottom">
+            <div className="page-footer-copy-block">
+              <p className="page-footer-copy">
+                {copy.footerLine1.split('Chicago Public Media')[0]}
+                <strong>Chicago Public Media</strong>
+                {copy.footerLine1.split('Chicago Public Media')[1]}
+              </p>
+              <p className="page-footer-copy page-footer-copy--muted">
+                {copy.footerLine2}
+              </p>
+            </div>
+            <p className="page-footer-legal">
+              <a
+                href="https://www.chicagopublicmedia.org/terms"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Terms
+              </a>
+              {' · '}
+              <a
+                href="https://www.chicagopublicmedia.org/privacy"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Privacy
+              </a>
+            </p>
+          </div>
         </footer>
       </main>
     </div>

@@ -18,7 +18,6 @@ if (databaseUrl) {
         : { rejectUnauthorized: false },
   })
 } else {
-  // eslint-disable-next-line no-console
   console.warn(
     'DATABASE_URL is not set; /api/early-access will return 500 until configured.',
   )
@@ -135,14 +134,12 @@ app.post('/api/early-access', async (req, res) => {
     const result = await pool.query(text, values)
     return res.status(201).json({ ok: true, id: result.rows[0]?.id ?? null })
   } catch (error) {
-    // eslint-disable-next-line no-console
     console.error('Error inserting signup', error)
     return res.status(500).json({ error: 'Failed to save signup.' })
   }
 })
 
 app.listen(port, () => {
-  // eslint-disable-next-line no-console
   console.log(`Backend listening on port ${port}`)
 })
 

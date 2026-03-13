@@ -58,8 +58,14 @@ This repository is public and intentionally omits any secrets or environment-spe
   - `package.json` – backend scripts and dependencies.
 - `docs/`
   - Product brief, design standards, rendering notes, and other reference material (not code).
+  - **`docs/page-copy.md`** — single place to view and edit all page copy; after editing, update `frontend/src/content.ts` to match.
 
 This separation lets engineering iterate on frontend and backend deployments independently while keeping product, design, and analytics decisions centralized in `docs/`.
+
+### SEO and indexing
+
+- **Current (pre-public):** Indexing is disallowed via `<meta name="robots" content="noindex, nofollow">` in `frontend/index.html` and `frontend/public/robots.txt` (`Disallow: /`). The page has SEO-friendly metadata (title, description, Open Graph, Twitter card) that teases chicago.com.
+- **When going public:** Remove the `robots` meta tag (or set to `index, follow`) and update or remove `public/robots.txt` so crawlers can index the site. Optionally set `og:url` and a canonical URL once the production URL is fixed.
 
 ---
 
@@ -341,4 +347,78 @@ This README is intended to give **engineering** a clear path to integrate, deplo
 
 Neighborhood boundary data used in this project is derived from the City of Chicago’s official neighborhoods dataset, published on the Chicago Data Portal as **“Boundaries – Neighborhoods”** (`bbvz-uum9`).  
 Source: [City of Chicago – Boundaries – Neighborhoods](https://data.cityofchicago.org/Facilities-Geographic-Boundaries/Boundaries-Neighborhoods/bbvz-uum9)
+
+---
+
+## Demo guide
+
+This section describes how to walk through the live Railway deployment for demos.
+
+- **Production URL**
+  - Frontend: `https://<your-frontend-host>` (e.g., a `railway.app` or custom domain).
+  - Backend: `https://<your-backend-host>` (used by the frontend via `VITE_BACKEND_URL`).
+
+Confirm with engineering/ops which exact domains are currently live and configured.
+
+### 1. Pre-demo checks
+
+- **Health**
+  - Visit `https://<your-backend-host>/healthz` and confirm it returns `{"status":"ok"}`.
+- **Frontend load**
+  - Open the frontend URL on:
+    - A recent mobile phone (portrait).
+    - A desktop browser (wider viewport).
+  - Verify the puzzle loads within a few seconds and neighborhood shapes render clearly.
+- **Environment**
+  - Ensure `VITE_BACKEND_URL` and `ALLOWED_ORIGIN` are configured so email capture works end‑to‑end.
+  - Optionally, confirm GA4 events are visible in the GA4 debug view for the Measurement ID in use.
+
+### 2. Standard demo path (normal user)
+
+1. **Landing**
+   - Load the frontend URL.
+   - Point out the headline and subheadline (e.g. “Let’s build a better Chicago together.”).
+   - Toggle between light and dark themes using the `Theme` toggle to show theming.
+2. **Play the puzzle**
+   - Drag a few neighborhoods into place.
+   - Highlight:
+     - Pieces snapping into the city outline when close.
+     - The subtle drop shadow and drag feedback.
+     - The “You last tapped …” line when tapping pieces.
+3. **Complete the puzzle**
+   - Finish placing the remaining pieces.
+   - Note the completion caption below the puzzle.
+4. **Completion modal + email capture**
+   - When the completion modal appears:
+     - Read the “You mapped Chicago.” title and short description.
+     - Enter a test email (e.g., `demo+timestamp@example.org`) and click **Get early access updates**.
+     - Show the success confirmation copy.
+   - Explain that:
+     - The email is stored in Postgres via `/api/early-access`.
+     - GA4 events capture `email_submit_attempt` / `email_submit_success` without sending the email itself.
+
+### 3. Admin override path (fast demo)
+
+Use this when you want to skip directly to the “completed puzzle + email prompt” state.
+
+1. Load the frontend URL.
+2. Click/tap the main H1 title (the main headline) **5 times within ~3 seconds**.
+3. Observe:
+   - All pieces snap into place.
+   - The app treats the puzzle as completed in local state.
+   - The completion/email modal opens automatically.
+4. Explain that:
+   - GA4 receives an `override_jump_to_complete` event with `admin_override: true`.
+   - This lets internal demo traffic be segmented from organic user behavior.
+
+### 4. Verifying email capture and export
+
+- **Backend write**
+  - After a test submission, confirm that a row appears in the `signups` table in Postgres (via your usual DB console or Railway UI).
+- **CSV export**
+  - From the `backend/` directory with `DATABASE_URL` set:
+    - Run `npm run export:signups > signups.csv`.
+  - Open `signups.csv` to confirm columns and values are as expected for downstream CRM import.
+
+With these steps, a non-technical stakeholder can reliably demo the experience and understand how it connects to analytics and email capture, while engineers have clear pointers for verifying end‑to‑end behavior.
 

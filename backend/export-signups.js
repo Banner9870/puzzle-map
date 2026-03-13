@@ -3,7 +3,6 @@ const { Pool } = require('pg')
 async function main() {
   const databaseUrl = process.env.DATABASE_URL
   if (!databaseUrl) {
-    // eslint-disable-next-line no-console
     console.error('DATABASE_URL is not set; cannot export signups.')
     process.exitCode = 1
     return
@@ -37,7 +36,6 @@ async function main() {
     )
 
     // Output CSV header
-    // eslint-disable-next-line no-console
     console.log(
       [
         'id',
@@ -73,11 +71,9 @@ async function main() {
         }
         return str
       })
-      // eslint-disable-next-line no-console
       console.log(cells.join(','))
     }
   } catch (error) {
-    // eslint-disable-next-line no-console
     console.error('Failed to export signups', error)
     process.exitCode = 1
   } finally {
@@ -86,7 +82,6 @@ async function main() {
 }
 
 main().catch((error) => {
-  // eslint-disable-next-line no-console
   console.error('Unexpected error during export', error)
   process.exitCode = 1
 })

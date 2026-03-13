@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { geoConicConformal, geoPath, type GeoProjection } from 'd3-geo'
+import { copy } from '../content'
 import {
   loadPuzzleState,
   savePuzzleState,
@@ -456,7 +457,7 @@ export function PuzzleCanvas({
         ),
       )
     },
-    [draggingPieceId, dragOffset, pieces, getSvgPoint, clampPosition],
+    [draggingPieceId, dragOffset, pieces, getSvgPoint, clampPosition, onPuzzleStarted],
   )
 
   const handlePointerUp = useCallback(
@@ -528,7 +529,7 @@ export function PuzzleCanvas({
         role="alert"
       >
         <p>
-          Something went wrong loading the puzzle.{' '}
+          {copy.loadError}{' '}
           <button
             type="button"
             onClick={() => {
@@ -537,7 +538,7 @@ export function PuzzleCanvas({
               setDimensions((d) => ({ ...d }))
             }}
           >
-            Retry
+            {copy.retry}
           </button>
         </p>
       </div>
@@ -553,7 +554,7 @@ export function PuzzleCanvas({
       {!isReady && !loadError && (
         <div className="puzzle-loading-overlay" aria-hidden="true">
           <span className="puzzle-loading-text">
-            Loading Chicago neighborhoods…
+            {copy.loadingNeighborhoods}
           </span>
         </div>
       )}
