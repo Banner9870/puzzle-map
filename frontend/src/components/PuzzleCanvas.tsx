@@ -69,11 +69,29 @@ function getScatterPosition(
   cityBounds: { minX: number; minY: number; maxX: number; maxY: number },
   width: number,
   height: number,
+  avoidRegions?: { minX: number; minY: number; maxX: number; maxY: number }[],
 ): { x: number; y: number } {
   const halfW = (piece.maxX - piece.minX) / 2
   const halfH = (piece.maxY - piece.minY) / 2
   const { minX: cityLeft, maxX: cityRight, minY: cityTop, maxY: cityBottom } =
     cityBounds
+
+  const pieceBoundsAt = (cx: number, cy: number) => ({
+    minX: cx + piece.minX - piece.targetCenterX,
+    minY: cy + piece.minY - piece.targetCenterY,
+    maxX: cx + piece.maxX - piece.targetCenterX,
+    maxY: cy + piece.maxY - piece.targetCenterY,
+  })
+
+  const overlapsAny = (cx: number, cy: number) => {
+    if (!avoidRegions?.length) return false
+    const b = pieceBoundsAt(cx, cy)
+    return avoidRegions.some(
+      (a) =>
+        !(b.maxX < a.minX || b.minX > a.maxX || b.maxY < a.minY || b.minY > a.maxY),
+    )
+  }
+
   const positions: { x: number; y: number }[] = []
 
   const topMinY = SCATTER_MARGIN + halfH
@@ -123,10 +141,16 @@ function getScatterPosition(
     })
   }
 
+  const nonOverlapping =
+    avoidRegions?.length && positions.length > 0
+      ? positions.filter((pos) => !overlapsAny(pos.x, pos.y))
+      : positions
+
   let x: number
   let y: number
-  if (positions.length > 0) {
-    const choice = positions[Math.floor(Math.random() * positions.length)]
+  const pool = nonOverlapping.length > 0 ? nonOverlapping : positions
+  if (pool.length > 0) {
+    const choice = pool[Math.floor(Math.random() * pool.length)]
     x = choice.x
     y = choice.y
   } else {
@@ -209,6 +233,7 @@ export function PuzzleCanvas({
   const [isReady, setIsReady] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [draggingPieceId, setDraggingPieceId] = useState<string | null>(null)
+  const [isDragMoving, setIsDragMoving] = useState(false)
   const [snappedPieceId, setSnappedPieceId] = useState<string | null>(null)
   const [dragOffset, setDragOffset] = useState<{ x: number; y: number } | null>(
     null,
@@ -457,6 +482,40 @@ export function PuzzleCanvas({
           const stored = loadPuzzleState(visitorId)
           piecesState = applyStoredState(piecesState, stored)
         }
+
+        // Re-scatter unlocked pieces to avoid overlapping snapped (locked) pieces
+        const cityBounds = {
+          minX: cityMinX,
+          minY: cityMinY,
+          maxX: cityMaxX,
+          maxY: cityMaxY,
+        }
+        const lockedBboxes = piecesState
+          .filter((p) => p.isLocked)
+          .map((p) => ({
+            minX: p.minX,
+            minY: p.minY,
+            maxX: p.maxX,
+            maxY: p.maxY,
+          }))
+        if (lockedBboxes.length > 0) {
+          piecesState = piecesState.map((piece) => {
+            if (piece.isLocked) return piece
+            const pos = getScatterPosition(
+              piece,
+              cityBounds,
+              width,
+              height,
+              lockedBboxes,
+            )
+            return {
+              ...piece,
+              currentCenterX: pos.x,
+              currentCenterY: pos.y,
+            }
+          })
+        }
+
         setPieces(piecesState)
         setIsReady(true)
       } catch (err) {
@@ -599,6 +658,7 @@ export function PuzzleCanvas({
         y: piece.currentCenterY - pt.y,
       })
       setDraggingPieceId(id)
+      setIsDragMoving(false)
       dragStartedRef.current = false
     },
     [pieces, getSvgPoint],
@@ -608,6 +668,7 @@ export function PuzzleCanvas({
     (e: React.PointerEvent) => {
       if (!draggingPieceId || !dragOffset) return
       dragStartedRef.current = true
+      setIsDragMoving(true)
       if (!hasReportedPuzzleStartedRef.current) {
         hasReportedPuzzleStartedRef.current = true
         onPuzzleStarted?.()
@@ -650,6 +711,7 @@ export function PuzzleCanvas({
 
       if (draggingPieceId !== id) return
       setDraggingPieceId(null)
+      setIsDragMoving(false)
       setDragOffset(null)
 
       setPieces((prev) => {
@@ -772,9 +834,16 @@ export function PuzzleCanvas({
           />
         )}
         {[...pieces]
-          .sort((a, b) =>
-            a.id === draggingPieceId ? 1 : b.id === draggingPieceId ? -1 : 0,
-          )
+          .sort((a, b) => {
+            // Draw locked pieces first (bottom), then unlocked (top), so overlapping
+            // unscrambled pieces are always grabbable on top of snapped ones (Safari/mobile).
+            if (a.isLocked && !b.isLocked) return -1
+            if (!a.isLocked && b.isLocked) return 1
+            // Among unlocked, bring dragging piece to front
+            if (a.id === draggingPieceId) return 1
+            if (b.id === draggingPieceId) return -1
+            return 0
+          })
           .map((piece) => {
             const dx = piece.currentCenterX - piece.targetCenterX
             const dy = piece.currentCenterY - piece.targetCenterY
@@ -782,10 +851,12 @@ export function PuzzleCanvas({
             const tx = piece.targetCenterX
             const ty = piece.targetCenterY
             const isSnapped = snappedPieceId === piece.id
+            const liftScale =
+              isDragging ? (isDragMoving ? 1.06 : 1.04) : isSnapped ? 1.04 : 1
             const transform = isDragging
-              ? `translate(${dx + tx}, ${dy + ty}) scale(1.02) translate(${-tx}, ${-ty})`
+              ? `translate(${dx + tx}, ${dy + ty}) scale(${liftScale}) translate(${-tx}, ${-ty})`
               : isSnapped
-                ? `translate(${dx + tx}, ${dy + ty}) scale(1.04) translate(${-tx}, ${-ty})`
+                ? `translate(${dx + tx}, ${dy + ty}) scale(${liftScale}) translate(${-tx}, ${-ty})`
                 : `translate(${dx}, ${dy})`
             return (
               <g
