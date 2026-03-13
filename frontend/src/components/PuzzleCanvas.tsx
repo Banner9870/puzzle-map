@@ -52,19 +52,6 @@ type PuzzleCanvasProps = {
 
 const SNAP_TOLERANCE = 24
 
-const DOTS = ['.', '..', '...']
-
-function LoadingDots() {
-  const [step, setStep] = useState(0)
-  useEffect(() => {
-    const id = setInterval(() => {
-      setStep((s) => (s + 1) % DOTS.length)
-    }, 400)
-    return () => clearInterval(id)
-  }, [])
-  return <span className="puzzle-loading-dots" aria-hidden="true">{DOTS[step]}</span>
-}
-
 function getCssColor(variableName: string, fallback: string): string {
   if (typeof window === 'undefined') return fallback
   const value = getComputedStyle(document.documentElement).getPropertyValue(
@@ -333,6 +320,20 @@ export function PuzzleCanvas({
               Math.random() * Math.max(0, height - 2 * (margin + halfH))
           }
 
+          // Clamp so piece stays fully in bounds (avoids out-of-frame on mobile)
+          const dx = currentCenterX - targetCenterX
+          const dy = currentCenterY - targetCenterY
+          const dxClamp = Math.max(
+            -minX,
+            Math.min(width - maxX, dx),
+          )
+          const dyClamp = Math.max(
+            -minY,
+            Math.min(height - maxY, dy),
+          )
+          currentCenterX = targetCenterX + dxClamp
+          currentCenterY = targetCenterY + dyClamp
+
           piecesState.push({
             id,
             name,
@@ -427,11 +428,12 @@ export function PuzzleCanvas({
 
   const handlePointerDown = useCallback(
     (e: React.PointerEvent) => {
-      if (e.button !== 0) return
+      if (e.pointerType !== 'touch' && e.button !== 0) return
       const id = (e.currentTarget as SVGElement).getAttribute('data-piece-id')
       if (!id) return
       const piece = pieces.find((p) => p.id === id)
       if (!piece || piece.isLocked) return
+      e.preventDefault()
       e.currentTarget.setPointerCapture(e.pointerId)
       const pt = getSvgPoint(e.clientX, e.clientY)
       setDragOffset({
@@ -475,7 +477,7 @@ export function PuzzleCanvas({
 
   const handlePointerUp = useCallback(
     (e: React.PointerEvent) => {
-      if (e.button !== 0) return
+      if (e.pointerType !== 'touch' && e.button !== 0) return
       const id = (e.currentTarget as SVGElement).getAttribute('data-piece-id')
       if (!id) return
       const piece = pieces.find((p) => p.id === id)
@@ -568,7 +570,6 @@ export function PuzzleCanvas({
         <div className="puzzle-loading-overlay" aria-hidden="true">
           <span className="puzzle-loading-text">
             {copy.loadingNeighborhoods}
-            <LoadingDots />
           </span>
         </div>
       )}

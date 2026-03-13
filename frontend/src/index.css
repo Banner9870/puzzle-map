@@ -173,7 +173,7 @@ button:focus-visible {
   padding-top: 125%;
 }
 
-/* Puzzle wrapper fills the aspect-ratio box; SVG scales inside it */
+/* Puzzle wrapper fills the aspect-ratio box; SVG scales inside it. touch-action: none so iOS captures drags. */
 .puzzle-shell-inner .puzzle-canvas-wrapper {
   position: absolute;
   top: 0;
@@ -184,6 +184,7 @@ button:focus-visible {
   height: 100%;
   overflow: hidden;
   contain: layout;
+  touch-action: none;
 }
 
 /* SVG overflow visible so piece shadows aren't clipped; shell still clips for rounded corners */

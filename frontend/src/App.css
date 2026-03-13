@@ -157,18 +157,12 @@
   font-size: 0.78rem;
   letter-spacing: 0.04em;
   text-transform: uppercase;
+  animation: puzzle-loading-pulse 1.2s ease-in-out infinite;
 }
 
-.puzzle-loading-dots {
-  display: inline-block;
-  min-width: 1.2em;
-  text-align: left;
-  animation: puzzle-loading-dots-pulse 1.2s ease-in-out infinite;
-}
-
-@keyframes puzzle-loading-dots-pulse {
+@keyframes puzzle-loading-pulse {
   0%, 100% { opacity: 1; }
-  50% { opacity: 0.6; }
+  50% { opacity: 0.7; }
 }
 
 @media (max-width: 599px) {

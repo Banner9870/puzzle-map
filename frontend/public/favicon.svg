@@ -1,5 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
-  <!-- Chicago star per design.chicago.gov: 14" tall, six points from a circle 6" diameter, points at 30° angles. Star Red #E4002B -->
-  <!-- Center (16,16), radius 7 (14/2). Angles: 90°, 150°, 210°, 270°, 330°, 30°. Two triangles form the hexagram. -->
-  <path fill="#E4002B" d="M 16 9 L 9.94 19.5 L 22.06 19.5 Z M 22.06 12.5 L 9.94 12.5 L 16 23 Z"/>
+  <!-- Chicago star per design.chicago.gov: 14" tall, six points from circle 6" diameter, 30° angles, rotated 30°. Star Red #E4002B -->
+  <g transform="rotate(30 16 16)">
+    <path fill="#E4002B" d="M 16 9 L 9.94 19.5 L 22.06 19.5 Z M 22.06 12.5 L 9.94 12.5 L 16 23 Z"/>
+  </g>
 </svg>
