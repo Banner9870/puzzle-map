@@ -24,6 +24,7 @@ export type PuzzleState = {
 const UUID_COOKIE_NAME = 'puzzle_uuid'
 const UUID_STORAGE_KEY = 'puzzle_uuid'
 const PUZZLE_STATE_PREFIX = 'puzzle_state_'
+const EMAIL_SUBMITTED_PREFIX = 'puzzle_email_submitted_'
 const TWO_YEARS_IN_SECONDS = 60 * 60 * 24 * 365 * 2
 
 /* Safe accessors; no-op or ignore errors in SSR or private mode. */
@@ -123,6 +124,24 @@ export function clearPuzzleState(visitorId: string) {
   if (typeof window === 'undefined') return
   try {
     window.localStorage.removeItem(getPuzzleStateKey(visitorId))
+  } catch {
+    // ignore
+  }
+}
+
+export function getEmailSubmitted(visitorId: string): boolean {
+  if (typeof window === 'undefined') return false
+  try {
+    return window.localStorage.getItem(`${EMAIL_SUBMITTED_PREFIX}${visitorId}`) === '1'
+  } catch {
+    return false
+  }
+}
+
+export function setEmailSubmitted(visitorId: string) {
+  if (typeof window === 'undefined') return
+  try {
+    window.localStorage.setItem(`${EMAIL_SUBMITTED_PREFIX}${visitorId}`, '1')
   } catch {
     // ignore
   }

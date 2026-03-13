@@ -8,8 +8,10 @@ import { PuzzleCanvas } from './components/PuzzleCanvas'
 import { copy } from './content'
 import {
   clearPuzzleState,
+  getEmailSubmitted,
   getOrCreateVisitorId,
   loadPuzzleState,
+  setEmailSubmitted,
 } from './persistence'
 import {
   detectDeviceType,
@@ -67,6 +69,8 @@ function App() {
   const [forceCompleteSignal, setForceCompleteSignal] = useState(0)
   const [forceShuffleSignal, setForceShuffleSignal] = useState(0)
   const [forceClearSignal, setForceClearSignal] = useState(0)
+  const [hasDismissedCompletionModal, setHasDismissedCompletionModal] =
+    useState(false)
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme
@@ -88,7 +92,8 @@ function App() {
     const stored = loadPuzzleState(id)
     const completedFromStorage = stored?.completed ?? false
     setIsCompleted(completedFromStorage)
-    if (completedFromStorage) {
+    const alreadySubmittedEmail = getEmailSubmitted(id)
+    if (completedFromStorage && !alreadySubmittedEmail) {
       setIsCompletionModalOpen(true)
     }
 
@@ -211,6 +216,9 @@ function App() {
       }
 
       setEmailStatus('success')
+      if (visitorId) {
+        setEmailSubmitted(visitorId)
+      }
       trackEmailSubmitSuccess({
         deviceType,
         hasCompletedPuzzle,
@@ -325,7 +333,12 @@ function App() {
                   onNeighborhoodTap={(name) => setLastNeighborhood(name)}
                   onCompleted={() => {
                     setIsCompleted(true)
-                    setIsCompletionModalOpen(true)
+                    if (
+                      !getEmailSubmitted(visitorId ?? '') &&
+                      !hasDismissedCompletionModal
+                    ) {
+                      setIsCompletionModalOpen(true)
+                    }
                     const deviceType = detectDeviceType()
                     const orientation = detectOrientation()
                     const now =
@@ -434,7 +447,12 @@ function App() {
                   <button
                     type="button"
                     className="completion-modal-secondary"
-                    onClick={() => setIsCompletionModalOpen(false)}
+                    onClick={(e) => {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      setIsCompletionModalOpen(false)
+                      setHasDismissedCompletionModal(true)
+                    }}
                   >
                     {copy.secondaryButton}
                   </button>
