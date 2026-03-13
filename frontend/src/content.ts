@@ -1,6 +1,7 @@
 /**
  * User-facing copy for the puzzle page.
  * Keep in sync with docs/page-copy.md when you change copy.
+ * Single source of UI strings for puzzle, modal, footer, and validation messages.
  */
 export const copy = {
   headline: "Let's build a better Chicago together.",

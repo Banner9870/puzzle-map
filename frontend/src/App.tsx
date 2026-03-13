@@ -1,3 +1,7 @@
+/**
+ * App is the shell: theme, visitor id, puzzle completion modal, and email capture.
+ * Renders PuzzleCanvas and handles all analytics and persistence for the puzzle and signup.
+ */
 import './App.css'
 import { useEffect, useState } from 'react'
 import { PuzzleCanvas } from './components/PuzzleCanvas'
@@ -25,6 +29,7 @@ type Theme = 'light' | 'dark'
 
 const appLoadTime = typeof performance !== 'undefined' ? performance.now() : 0
 
+/* Uses prefers-color-scheme; defaults to light if unavailable. */
 function getInitialTheme(): Theme {
   if (typeof window !== 'undefined' && window.matchMedia) {
     try {
@@ -40,6 +45,7 @@ function getInitialTheme(): Theme {
 }
 
 function App() {
+  /* State groups: visitor/completion, modal/email form, theme, admin click counter and force signals for PuzzleCanvas. */
   const [lastNeighborhood, setLastNeighborhood] = useState<string | null>(null)
   const [isCompleted, setIsCompleted] = useState(false)
   const [visitorId, setVisitorId] = useState<string | null>(null)
@@ -66,6 +72,7 @@ function App() {
     document.documentElement.dataset.theme = theme
   }, [theme])
 
+  /* Get or create visitor id, load puzzle state, init GA, track puzzle_view; open completion modal if already completed. */
   useEffect(() => {
     const result = getOrCreateVisitorId()
     if (!result) {
@@ -105,6 +112,7 @@ function App() {
     setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'))
   }
 
+  /* Bump force signals so PuzzleCanvas re-scatters or clears; handleClearPuzzle also clears stored state and resets completion modal. */
   const handleShufflePieces = () => {
     setForceShuffleSignal((n) => n + 1)
   }
@@ -118,6 +126,7 @@ function App() {
     setForceClearSignal((n) => n + 1)
   }
 
+  /* Client-side validation only; returns copy string or null. */
   const validateEmail = (value: string): string | null => {
     const trimmed = value.trim()
     if (!trimmed) return copy.emailRequired
@@ -127,6 +136,7 @@ function App() {
     return null
   }
 
+  /* Validate → track attempt → POST /api/early-access → track success/failure and set email status/error. */
   const handleSubmitEmail: React.FormEventHandler<HTMLFormElement> = async (
     event,
   ) => {
@@ -215,6 +225,7 @@ function App() {
     }
   }
 
+  /* Five clicks within ~3s set forceCompleteSignal (admin override) and track override event. */
   const handleTitleClick: React.MouseEventHandler<HTMLHeadingElement> = () => {
     const now =
       typeof performance !== 'undefined' ? performance.now() : Date.now()
@@ -249,6 +260,7 @@ function App() {
     )
   }
 
+  /* Layout: theme toggle, puzzle shell (heading + PuzzleCanvas + caption), completion modal (when open), footer. PuzzleCanvas receives visitorId, completion/shuffle/clear handlers, and force signals. */
   return (
     <div className="page">
       <main className="page-inner">

@@ -1,3 +1,7 @@
+/**
+ * GA4 helpers: device/orientation, gtag init, and event wrappers for puzzle and email flows.
+ * All event names and payloads are here.
+ */
 declare global {
   interface Window {
     dataLayer?: unknown[]
@@ -8,11 +12,13 @@ declare global {
 type DeviceType = 'mobile' | 'tablet' | 'desktop'
 type Orientation = 'portrait' | 'landscape'
 
+/* Reads VITE_GA_MEASUREMENT_ID; returns null if unset so analytics no-op in dev. */
 function getMeasurementId(): string | null {
   const id = import.meta.env.VITE_GA_MEASUREMENT_ID as string | undefined
   return id && id.length > 0 ? id : null
 }
 
+/* Breakpoints and aspect used for event dimensions. */
 export function detectDeviceType(): DeviceType {
   if (typeof window === 'undefined') return 'desktop'
   const width = window.innerWidth || 1024
@@ -28,6 +34,7 @@ export function detectOrientation(): Orientation {
   return height >= width ? 'portrait' : 'landscape'
 }
 
+/* Injects gtag script and defines window.gtag if not present. */
 function ensureGtagInitialized() {
   if (typeof window === 'undefined') return
   if (window.gtag) return
@@ -50,6 +57,7 @@ function ensureGtagInitialized() {
   window.gtag('js', new Date())
 }
 
+/* Sets gtag config with user_id. */
 export function initAnalytics(userId: string) {
   const measurementId = getMeasurementId()
   if (!measurementId) return
@@ -61,6 +69,7 @@ export function initAnalytics(userId: string) {
   })
 }
 
+/* Each track* sends one GA event with consistent device/orientation and custom params; safe to call when gtag missing (no-op). */
 export function trackUserUuidCreated() {
   if (!window.gtag) return
   window.gtag('event', 'user_uuid_created', {})

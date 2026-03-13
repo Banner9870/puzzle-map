@@ -1,3 +1,7 @@
+/**
+ * Puzzle map: loads Chicago neighborhoods GeoJSON, projects with d3-geo, renders one draggable piece per neighborhood,
+ * snaps when within SNAP_TOLERANCE, persists locked state via persistence. Does not render page chrome or completion modal (App does).
+ */
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { geoConicConformal, geoPath, type GeoProjection } from 'd3-geo'
 import { copy } from '../content'
@@ -7,6 +11,7 @@ import {
   type PuzzleState,
 } from '../persistence'
 
+/* GeoJSON and runtime piece state types; props include callbacks and optional force signals from App. */
 type NeighborhoodFeature = {
   type: 'Feature'
   id?: string | number
@@ -53,10 +58,12 @@ type PuzzleCanvasProps = {
   forceClearSignal?: number
 }
 
+/* Snap distance (SVG units) and scatter layout tuning; increase SNAP_TOLERANCE to make snapping easier. */
 const SNAP_TOLERANCE = 24
 const SCATTER_MARGIN = 16
 const SCATTER_GAP = 24
 
+/* Picks a random position in bands around the city bounds so pieces don't overlap the outline; optional avoidRegions used to avoid overlapping already locked pieces. */
 function getScatterPosition(
   piece: {
     minX: number
@@ -180,14 +187,7 @@ function getScatterPosition(
   }
 }
 
-function getCssColor(variableName: string, fallback: string): string {
-  if (typeof window === 'undefined') return fallback
-  const value = getComputedStyle(document.documentElement).getPropertyValue(
-    variableName,
-  )
-  return value.trim() || fallback
-}
-
+/* d3-geo conic conformal projection fitted to the canvas; rotate/fitSize control how Chicago is centered and scaled. */
 function buildProjection(
   width: number,
   height: number,
@@ -204,6 +204,7 @@ function buildProjection(
   return projection
 }
 
+/* Turns a GeoJSON feature into an SVG path string via d3 geoPath; handles null and non-string return values. */
 function getPathString(
   pathGenerator: ReturnType<typeof geoPath>,
   feature: NeighborhoodFeature,
@@ -225,6 +226,7 @@ export function PuzzleCanvas({
   forceShuffleSignal = 0,
   forceClearSignal = 0,
 }: PuzzleCanvasProps) {
+  /* State: dimensions (from ResizeObserver), pieces (from GeoJSON + persistence), drag state, unlockedOrder (for draw order and tap-to-cycle). */
   const containerRef = useRef<HTMLDivElement | null>(null)
   const svgRef = useRef<SVGSVGElement | null>(null)
   const [dimensions, setDimensions] = useState({ width: 1, height: 1 })
@@ -245,6 +247,7 @@ export function PuzzleCanvas({
   const piecesRef = useRef<PieceState[]>([])
   piecesRef.current = pieces
 
+  /* Supports both new format (lockedPieceIds) and legacy (placedPieces with isLocked). */
   const applyStoredState = useCallback(
     (basePieces: PieceState[], stored: PuzzleState | null): PieceState[] => {
       if (!stored) return basePieces
@@ -271,7 +274,7 @@ export function PuzzleCanvas({
     [],
   )
 
-  // Resize observer to keep dimensions in sync
+  /* Updates dimensions when the container size changes; GeoJSON load effect depends on dimensions. */
   useEffect(() => {
     const container = containerRef.current
     if (!container) return
@@ -292,7 +295,7 @@ export function PuzzleCanvas({
     return () => ro.disconnect()
   }, [])
 
-  // Load GeoJSON and build piece state (once we have dimensions)
+  /* Fetches neighborhoods, builds projection and paths, builds initial piece state, applies stored locked state, then re-scatters unlocked pieces (avoiding locked bboxes). */
   useEffect(() => {
     const { width, height } = dimensions
     if (width <= 1 && height <= 1) return
@@ -536,6 +539,7 @@ export function PuzzleCanvas({
     }
   }, [dimensions, applyStoredState, visitorId])
 
+  /* Persists completed flag and lockedPieceIds whenever pieces change. */
   useEffect(() => {
     if (!visitorId || pieces.length === 0) return
     const completed = pieces.every((p) => p.isLocked)
@@ -543,8 +547,7 @@ export function PuzzleCanvas({
     savePuzzleState(visitorId, { completed, lockedPieceIds })
   }, [pieces, visitorId])
 
-  // When an admin override is triggered, snap all pieces into place,
-  // mark them locked, and emit completion through the existing callback.
+  /* Admin override: lock all pieces and call onCompleted. */
   useEffect(() => {
     if (!forceCompleteSignal || pieces.length === 0) return
     setPieces((prev) =>
@@ -563,7 +566,7 @@ export function PuzzleCanvas({
   const shuffleSignalRef = useRef(0)
   const clearSignalRef = useRef(0)
 
-  // Shuffle: re-scatter unlocked pieces only (positions adapt to current dimensions).
+  /* When forceShuffleSignal increments, re-scatter only unlocked pieces. */
   useEffect(() => {
     if (forceShuffleSignal === shuffleSignalRef.current) return
     shuffleSignalRef.current = forceShuffleSignal
@@ -593,7 +596,7 @@ export function PuzzleCanvas({
     )
   }, [forceShuffleSignal, dimensions.width, dimensions.height])
 
-  // Clear: unlock all and re-scatter all pieces.
+  /* When forceClearSignal increments, unlock all and re-scatter all. */
   useEffect(() => {
     if (forceClearSignal === clearSignalRef.current) return
     clearSignalRef.current = forceClearSignal
@@ -625,6 +628,7 @@ export function PuzzleCanvas({
     })
   }, [forceClearSignal, dimensions.width, dimensions.height])
 
+  /* Maps client coordinates to SVG coordinate system (for drag math). */
   const getSvgPoint = useCallback((clientX: number, clientY: number) => {
     const svg = svgRef.current
     if (!svg) return { x: 0, y: 0 }
@@ -635,6 +639,7 @@ export function PuzzleCanvas({
     return { x: transformed.x, y: transformed.y }
   }, [])
 
+  /* Keeps piece center within canvas so the piece never goes fully off-screen. */
   const clampPosition = useCallback(
     (piece: PieceState, x: number, y: number) => {
       const { width, height } = dimensions
@@ -650,6 +655,7 @@ export function PuzzleCanvas({
     [dimensions],
   )
 
+  /* Pointer handlers: capture on piece, track offset, move with clamping; on release, snap if within SNAP_TOLERANCE and optionally fire onNeighborhoodTap for tap (no drag). */
   const handlePointerDown = useCallback(
     (e: React.PointerEvent) => {
       if (e.pointerType !== 'touch' && e.button !== 0) return
@@ -777,6 +783,7 @@ export function PuzzleCanvas({
   const pieceStrokeWidth = isNarrow ? 1.2 : 1.8
   const outlineStrokeWidth = isNarrow ? 1.2 : 1.6
 
+  /* Error: retry button. Loading: overlay. SVG: viewBox matches dimensions; outline path then pieces in sort order (dragged on top); each piece is a <g> with hit-area path + visible path. */
   if (loadError) {
     return (
       <div

@@ -1,3 +1,6 @@
+/**
+ * CLI: reads signups from Postgres and prints CSV to stdout; requires DATABASE_URL.
+ */
 const { Pool } = require('pg')
 
 async function main() {
@@ -17,6 +20,7 @@ async function main() {
   })
 
   try {
+    /* Columns must match signups table and header row. */
     const result = await pool.query(
       `
         SELECT

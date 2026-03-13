@@ -1,5 +1,11 @@
-/** @deprecated Legacy format; we now only persist locked piece ids. */
-export type StoredPieceState = {
+/**
+ * Visitor-scoped persistence: cookie + localStorage for visitor id,
+ * localStorage only for puzzle state (completed + lockedPieceIds).
+ * Used by App and PuzzleCanvas.
+ */
+
+/** @deprecated Legacy format; we now only persist locked piece ids. New saves use only completed and lockedPieceIds; placedPieces still read for legacy. */
+type StoredPieceState = {
   id: string
   currentCenterX?: number
   currentCenterY?: number
@@ -14,11 +20,13 @@ export type PuzzleState = {
   placedPieces?: StoredPieceState[]
 }
 
+/* Cookie/storage key names and cookie TTL. */
 const UUID_COOKIE_NAME = 'puzzle_uuid'
 const UUID_STORAGE_KEY = 'puzzle_uuid'
 const PUZZLE_STATE_PREFIX = 'puzzle_state_'
 const TWO_YEARS_IN_SECONDS = 60 * 60 * 24 * 365 * 2
 
+/* Safe accessors; no-op or ignore errors in SSR or private mode. */
 function readCookie(name: string): string | null {
   if (typeof document === 'undefined') return null
   const value = document.cookie
@@ -53,6 +61,7 @@ function writeLocalStorage(key: string, value: string) {
   }
 }
 
+/* Returns null on invalid or missing JSON. */
 function safeParseJson<T>(raw: string | null): T | null {
   if (!raw) return null
   try {
@@ -62,6 +71,7 @@ function safeParseJson<T>(raw: string | null): T | null {
   }
 }
 
+/* Cookie first, then localStorage; creates new UUID if neither present; syncs both. */
 export function getOrCreateVisitorId():
   | { id: string; isNew: boolean }
   | null {
@@ -93,10 +103,12 @@ export function getOrCreateVisitorId():
   return { id: newId, isNew: true }
 }
 
+/** Storage key for this visitor's puzzle state (used by load/save/clear). */
 export function getPuzzleStateKey(visitorId: string): string {
   return `${PUZZLE_STATE_PREFIX}${visitorId}`
 }
 
+/* Load/save full PuzzleState. clearPuzzleState removes the key so next load gets null. */
 export function loadPuzzleState(visitorId: string): PuzzleState | null {
   const raw = readLocalStorage(getPuzzleStateKey(visitorId))
   return safeParseJson<PuzzleState>(raw)

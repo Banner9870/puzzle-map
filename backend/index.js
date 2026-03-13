@@ -1,3 +1,6 @@
+/**
+ * Express app: health check, CORS for /api/early-access, rate limit, and POST to insert signup into Postgres.
+ */
 const express = require('express')
 const { Pool } = require('pg')
 
@@ -6,6 +9,7 @@ const app = express()
 const port = process.env.PORT || 4000
 const databaseUrl = process.env.DATABASE_URL
 
+/* DATABASE_URL optional; 500 on early-access if unset. */
 /** @type {import('pg').Pool | null} */
 let pool = null
 if (databaseUrl) {
@@ -25,7 +29,14 @@ if (databaseUrl) {
 
 app.use(express.json())
 
-// Simple CORS headers for the email capture endpoint (sufficient for prototype usage).
+/* Security headers for all responses. In production consider adding Content-Security-Policy if needed. */
+app.use((_req, res, next) => {
+  res.setHeader('X-Frame-Options', 'DENY')
+  res.setHeader('X-Content-Type-Options', 'nosniff')
+  next()
+})
+
+/* Only applies to /api/early-access; ALLOWED_ORIGIN or *. In production set ALLOWED_ORIGIN to frontend origin. */
 app.use((req, res, next) => {
   if (req.path === '/api/early-access' || req.path === '/api/early-access/') {
     const allowedOrigin = process.env.ALLOWED_ORIGIN || '*'
@@ -39,11 +50,9 @@ app.use((req, res, next) => {
   next()
 })
 
-// Very lightweight in-memory rate limiting for the email capture endpoint.
-// This is intentionally simple for the prototype and guards against bursts.
+/* In-memory per key; RATE_LIMIT_MAX_REQUESTS per RATE_LIMIT_WINDOW_MS. Resets on restart; for multi-instance consider shared store (e.g. Redis). */
 const RATE_LIMIT_WINDOW_MS = 60_000
 const RATE_LIMIT_MAX_REQUESTS = 20
-// Map<key, { count: number, windowStart: number }>
 const rateLimitStore = new Map()
 
 function checkRateLimit(key) {
@@ -64,6 +73,7 @@ app.get('/healthz', (_req, res) => {
   res.json({ status: 'ok' })
 })
 
+/* Validate uuid and email; rate limit by ip+uuid or ip; insert signups row; return 201 or 4xx/5xx. */
 app.post('/api/early-access', async (req, res) => {
   if (!pool) {
     return res

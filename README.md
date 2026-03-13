@@ -41,6 +41,12 @@ This repository is public and intentionally omits any secrets or environment-spe
   - TLS handled by the hosting platform (e.g., Railway).
   - Basic CORS scoping for the email endpoint.
   - Minimal in-memory rate limiting to reduce abuse on `/api/early-access`.
+  - Security headers: `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff` on all responses.
+- **Before production (handoff checklist)**:
+  - Set `ALLOWED_ORIGIN` to the frontend origin (not `*`).
+  - Ensure `DATABASE_URL`, `VITE_BACKEND_URL`, and `VITE_GA_MEASUREMENT_ID` are set in production envs.
+  - Apply the `signups` table schema to the production DB before first deploy.
+  - Run `npm audit` in `frontend/` and `backend/` and address any findings.
 
 ---
 
@@ -49,6 +55,7 @@ This repository is public and intentionally omits any secrets or environment-spe
 - `frontend/`
   - `src/App.tsx` – main layout, theme, puzzle container, completion modal, GA4 wiring.
   - `src/components/PuzzleCanvas.tsx` – SVG puzzle, drag/snap/lock mechanics, persistence integration.
+  - `src/components/ErrorBoundary.tsx` – catches render errors and shows a friendly message with retry.
   - `src/analytics.ts` – GA4 initialization and custom event helpers.
   - `src/persistence.ts` – UUID generation, cookie + `localStorage` helpers, puzzle state load/save.
   - `public/chicago_neighborhoods.geojson` (or equivalent) – GeoJSON for Chicago neighborhoods.
