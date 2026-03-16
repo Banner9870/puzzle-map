@@ -59,6 +59,7 @@ body {
   min-height: 100vh;
   background-color: var(--bg-primary);
   color: var(--text-body);
+  overflow-x: hidden;
 }
 
 #root {
@@ -109,7 +110,7 @@ button:focus-visible {
   flex: 1;
   display: flex;
   flex-direction: column;
-  padding: var(--space-page-vertical) var(--space-page-horizontal) 3rem;
+  padding: var(--space-page-vertical) var(--space-page-horizontal) 0;
   max-width: var(--page-max-width);
   margin: 0 auto;
 }
@@ -175,9 +176,7 @@ button:focus-visible {
 
 .puzzle-shell {
   position: relative;
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-strong);
-  background: radial-gradient(circle at top, #f3f4f6 0, #e5e7eb 40%, #d1d5db 100%);
+  background-color: var(--bg-primary);
   overflow: hidden;
 }
 
@@ -302,15 +301,24 @@ button:focus-visible {
   }
 }
 
-/* Footer — CPM / WBEZ style: multi-column links, logo, copyright row. Always dark theme so the white CPM logo is legible. */
+/* Footer — CPM / WBEZ style: multi-column links, logo, copyright row. Always dark theme so the white CPM logo is legible. Full-bleed black background in footer region only. */
 .page-footer {
+  box-sizing: border-box;
+  width: 100vw;
   margin-top: 2.5rem;
+  margin-left: calc(50% - 50vw);
   padding: 2rem var(--space-page-horizontal) 1.5rem;
-  background-color: #0b1120;
+  background-color: #000000;
   border-top: 1px solid #1f2937;
   font-size: 0.8rem;
   color: #9ca3af;
   line-height: 1.5;
+}
+
+@media (max-width: 767px) {
+  .page-footer {
+    padding-bottom: calc(1.5rem + 5rem);
+  }
 }
 
 .page-footer-grid {
@@ -430,12 +438,7 @@ button:focus-visible {
 }
 
 :root[data-theme='dark'] .puzzle-shell {
-  background: radial-gradient(
-    circle at top,
-    #111827 0,
-    #020617 40%,
-    #000000 100%
-  );
+  background-color: var(--bg-primary);
 }
 
 @media (min-width: 768px) {
@@ -475,10 +478,5 @@ button:focus-visible {
 }
 
 :root[data-theme='dark'] .puzzle-shell {
-  background: radial-gradient(
-    circle at top,
-    #111827 0,
-    #020617 40%,
-    #000000 100%
-  );
+  background-color: var(--bg-primary);
 }
