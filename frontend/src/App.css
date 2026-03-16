@@ -204,3 +204,10 @@
     align-items: flex-start;
   }
 }
+
+/* On mobile portrait we show the neighborhood card as a bottom sheet; hide the right column. */
+@media (max-width: 767px) and (orientation: portrait) {
+  .layout-main-teaser {
+    display: none;
+  }
+}
