@@ -647,24 +647,22 @@ export function PuzzleCanvas({
       maxX: Math.max(...current.map((p) => p.maxX)),
       maxY: Math.max(...current.map((p) => p.maxY)),
     }
-    setPieces((prev) => {
-      const next = prev.map((piece) => {
-        const pos = getScatterPosition(
-          piece,
-          cityBounds,
-          dimensions.width,
-          dimensions.height,
-        )
-        return {
-          ...piece,
-          currentCenterX: pos.x,
-          currentCenterY: pos.y,
-          isLocked: false,
-        }
-      })
-      setUnlockedOrder(next.map((p) => p.id))
-      return next
+    const next = current.map((piece) => {
+      const pos = getScatterPosition(
+        piece,
+        cityBounds,
+        dimensions.width,
+        dimensions.height,
+      )
+      return {
+        ...piece,
+        currentCenterX: pos.x,
+        currentCenterY: pos.y,
+        isLocked: false,
+      }
     })
+    setPieces(next)
+    setUnlockedOrder(next.map((p) => p.id))
   }, [forceClearSignal, dimensions.width, dimensions.height])
 
   /* Maps client coordinates to SVG coordinate system (for drag math). */
