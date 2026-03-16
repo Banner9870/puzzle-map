@@ -432,12 +432,11 @@ function App() {
                 <NeighborhoodCard neighborhoodName={lastNeighborhood} variant="panel" />
               </div>
             )}
-            <p className="teaser-text">{copy.teaser}</p>
           </aside>
         </section>
 
         {isMobilePortrait && (
-          <BottomSheet title="Neighborhood details">
+          <BottomSheet title={lastNeighborhood ?? 'Tap a neighborhood.'}>
             <NeighborhoodCard neighborhoodName={lastNeighborhood} variant="sheet" />
           </BottomSheet>
         )}
