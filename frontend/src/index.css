@@ -158,19 +158,10 @@ button:focus-visible {
   gap: var(--space-block);
 }
 
-/* Single-line tease: minimal, no heavy sidebar (CPM-style) */
+/* Teaser column: neighborhood panel on desktop; minimal, no heavy sidebar (CPM-style) */
 .layout-main-teaser {
   padding: 0;
   margin: 0;
-}
-
-.teaser-text {
-  margin: 0;
-  font-size: 0.95rem;
-  line-height: 1.5;
-  color: var(--text-body);
-  font-style: italic;
-  max-width: 36rem;
 }
 
 .puzzle-shell {

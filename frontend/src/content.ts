@@ -13,9 +13,6 @@ export const copy = {
   completionCaption:
     "Puzzle complete. Check the message below to get early access updates.",
 
-  teaser:
-    "Something new for Chicago is on the way. Complete the map to get a first look.",
-
   modalTitle: "You mapped Chicago.",
   modalBody:
     "We're building chicago.com as a new way for Chicagoans to see their city, neighborhood by neighborhood. Drop your email below if you'd like early access when it's ready.",
