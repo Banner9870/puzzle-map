@@ -690,41 +690,6 @@ export function PuzzleCanvas({
     }
   }, [scheduleDebugHudUpdate])
 
-  useEffect(() => {
-    if (!isIosSafari()) return
-    const handleNativeMove = (e: PointerEvent) => {
-      if (e.pointerType !== 'touch') return
-      if (
-        draggingPointerIdRef.current != null &&
-        e.pointerId !== draggingPointerIdRef.current
-      ) {
-        return
-      }
-      ;(handlePointerMove as unknown as (event: PointerEvent) => void)(e)
-    }
-
-    const handleNativeUpOrCancel = (e: PointerEvent) => {
-      if (e.pointerType !== 'touch') return
-      if (
-        draggingPointerIdRef.current != null &&
-        e.pointerId !== draggingPointerIdRef.current
-      ) {
-        return
-      }
-      ;(handlePointerUp as unknown as (event: PointerEvent) => void)(e)
-    }
-
-    window.addEventListener('pointermove', handleNativeMove)
-    window.addEventListener('pointerup', handleNativeUpOrCancel)
-    window.addEventListener('pointercancel', handleNativeUpOrCancel)
-
-    return () => {
-      window.removeEventListener('pointermove', handleNativeMove)
-      window.removeEventListener('pointerup', handleNativeUpOrCancel)
-      window.removeEventListener('pointercancel', handleNativeUpOrCancel)
-    }
-  }, [handlePointerMove, handlePointerUp])
-
   /* Persists completed flag and lockedPieceIds whenever pieces change. */
   useEffect(() => {
     if (!visitorId || pieces.length === 0) return
@@ -1019,6 +984,42 @@ export function PuzzleCanvas({
     },
     [onNeighborhoodTap, onCompleted, onMove],
   )
+
+  useEffect(() => {
+    if (!isIosSafari()) return
+
+    const handleNativeMove = (e: PointerEvent) => {
+      if (e.pointerType !== 'touch') return
+      if (
+        draggingPointerIdRef.current != null &&
+        e.pointerId !== draggingPointerIdRef.current
+      ) {
+        return
+      }
+      ;(handlePointerMove as unknown as (event: PointerEvent) => void)(e)
+    }
+
+    const handleNativeUpOrCancel = (e: PointerEvent) => {
+      if (e.pointerType !== 'touch') return
+      if (
+        draggingPointerIdRef.current != null &&
+        e.pointerId !== draggingPointerIdRef.current
+      ) {
+        return
+      }
+      ;(handlePointerUp as unknown as (event: PointerEvent) => void)(e)
+    }
+
+    window.addEventListener('pointermove', handleNativeMove)
+    window.addEventListener('pointerup', handleNativeUpOrCancel)
+    window.addEventListener('pointercancel', handleNativeUpOrCancel)
+
+    return () => {
+      window.removeEventListener('pointermove', handleNativeMove)
+      window.removeEventListener('pointerup', handleNativeUpOrCancel)
+      window.removeEventListener('pointercancel', handleNativeUpOrCancel)
+    }
+  }, [handlePointerMove, handlePointerUp])
 
   const isNarrow = dimensions.width < 600
   const pieceStrokeWidth = isNarrow ? 1.2 : 1.8
