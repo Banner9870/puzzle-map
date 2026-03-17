@@ -53,10 +53,18 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+html,
+body {
+  height: 100%;
+}
+
 body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
+  /* iOS Safari: match the *visual* viewport (URL bar). */
+  min-height: 100svh;
+  min-height: 100dvh;
   background-color: var(--bg-primary);
   color: var(--text-body);
   overflow-x: hidden;
@@ -64,6 +72,8 @@ body {
 
 #root {
   min-height: 100vh;
+  min-height: 100svh;
+  min-height: 100dvh;
 }
 
 a {
@@ -103,6 +113,8 @@ button:focus-visible {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+  min-height: 100svh;
+  min-height: 100dvh;
   background-color: var(--bg-primary);
 }
 
@@ -289,6 +301,13 @@ button:focus-visible {
 @media (max-width: 599px) {
   .puzzle-shell-caption {
     padding: 1rem;
+  }
+}
+
+/* Mobile portrait: reserve space so the fixed bottom-sheet peek/handle doesn't cover the puzzle. */
+@media (max-width: 767px) and (orientation: portrait) {
+  .layout-main-primary {
+    padding-bottom: calc(84px + env(safe-area-inset-bottom));
   }
 }
 
