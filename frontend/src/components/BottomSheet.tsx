@@ -24,6 +24,8 @@ export function BottomSheet(props: {
 
   const sheetRef = useRef<HTMLDivElement | null>(null)
   const [maxTranslateY, setMaxTranslateY] = useState(0)
+  const [suppressTransition, setSuppressTransition] = useState(false)
+  const suppressTransitionRafRef = useRef<number | null>(null)
 
   const defaultTranslateY = useMemo(() => {
     return defaultSnap === 'expanded' ? 0 : maxTranslateY
@@ -49,6 +51,18 @@ export function BottomSheet(props: {
     const measure = () => {
       const rect = el.getBoundingClientRect()
       const nextMax = Math.max(0, Math.round(rect.height - peekHeightPx))
+      // Content changes (like switching neighborhoods) can change height and thus maxTranslateY.
+      // Suppress the transform transition for this automatic adjustment to avoid a "bounce".
+      if (nextMax !== maxTranslateY && !dragStateRef.current?.isDragging) {
+        setSuppressTransition(true)
+        if (suppressTransitionRafRef.current != null) {
+          cancelAnimationFrame(suppressTransitionRafRef.current)
+        }
+        suppressTransitionRafRef.current = requestAnimationFrame(() => {
+          suppressTransitionRafRef.current = null
+          setSuppressTransition(false)
+        })
+      }
       setMaxTranslateY(nextMax)
     }
 
@@ -62,7 +76,15 @@ export function BottomSheet(props: {
 
     window.addEventListener('resize', measure)
     return () => window.removeEventListener('resize', measure)
-  }, [peekHeightPx])
+  }, [peekHeightPx, maxTranslateY])
+
+  useEffect(() => {
+    return () => {
+      if (suppressTransitionRafRef.current != null) {
+        cancelAnimationFrame(suppressTransitionRafRef.current)
+      }
+    }
+  }, [])
 
   useEffect(() => {
     // Keep translateY consistent when maxTranslateY changes (rotation, font load, etc.)
@@ -146,7 +168,13 @@ export function BottomSheet(props: {
     <div className="bottom-sheet-portal" aria-label={title}>
       <div
         ref={sheetRef}
-        className={`bottom-sheet ${isCollapsed ? 'bottom-sheet--collapsed' : 'bottom-sheet--expanded'}`}
+        className={[
+          'bottom-sheet',
+          isCollapsed ? 'bottom-sheet--collapsed' : 'bottom-sheet--expanded',
+          suppressTransition ? 'bottom-sheet--no-transition' : '',
+        ]
+          .filter(Boolean)
+          .join(' ')}
         style={{
           transform: `translate3d(0, ${translateY}px, 0)`,
         }}

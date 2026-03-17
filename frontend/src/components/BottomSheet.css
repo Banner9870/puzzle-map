@@ -17,6 +17,10 @@
     calc(env(safe-area-inset-bottom) + 0.75rem);
 }
 
+.bottom-sheet--no-transition {
+  transition: none !important;
+}
+
 @media (max-width: 767px) {
   .bottom-sheet {
     box-sizing: border-box;
