@@ -692,27 +692,36 @@ export function PuzzleCanvas({
 
   useEffect(() => {
     if (!isIosSafari()) return
-    const svg = svgRef.current
-    if (!svg) return
-
     const handleNativeMove = (e: PointerEvent) => {
       if (e.pointerType !== 'touch') return
+      if (
+        draggingPointerIdRef.current != null &&
+        e.pointerId !== draggingPointerIdRef.current
+      ) {
+        return
+      }
       ;(handlePointerMove as unknown as (event: PointerEvent) => void)(e)
     }
 
     const handleNativeUpOrCancel = (e: PointerEvent) => {
       if (e.pointerType !== 'touch') return
+      if (
+        draggingPointerIdRef.current != null &&
+        e.pointerId !== draggingPointerIdRef.current
+      ) {
+        return
+      }
       ;(handlePointerUp as unknown as (event: PointerEvent) => void)(e)
     }
 
-    svg.addEventListener('pointermove', handleNativeMove)
-    svg.addEventListener('pointerup', handleNativeUpOrCancel)
-    svg.addEventListener('pointercancel', handleNativeUpOrCancel)
+    window.addEventListener('pointermove', handleNativeMove)
+    window.addEventListener('pointerup', handleNativeUpOrCancel)
+    window.addEventListener('pointercancel', handleNativeUpOrCancel)
 
     return () => {
-      svg.removeEventListener('pointermove', handleNativeMove)
-      svg.removeEventListener('pointerup', handleNativeUpOrCancel)
-      svg.removeEventListener('pointercancel', handleNativeUpOrCancel)
+      window.removeEventListener('pointermove', handleNativeMove)
+      window.removeEventListener('pointerup', handleNativeUpOrCancel)
+      window.removeEventListener('pointercancel', handleNativeUpOrCancel)
     }
   }, [handlePointerMove, handlePointerUp])
 
@@ -860,7 +869,9 @@ export function PuzzleCanvas({
         })
         scheduleDebugHudUpdate()
       }
-      svgRef.current?.setPointerCapture(e.pointerId)
+      if (!isIosSafari()) {
+        svgRef.current?.setPointerCapture(e.pointerId)
+      }
       svgInverseCtmRef.current = svgRef.current?.getScreenCTM()?.inverse() ?? null
       const pt = getSvgPoint(e.clientX, e.clientY)
       dragOffsetRef.current = {
