@@ -15,6 +15,9 @@ This repository is public and intentionally omits any secrets or environment-spe
 - **State & persistence**:
   - A per-visitor UUID is generated and stored in both a cookie and `localStorage`.
   - Puzzle progress (piece positions + completion state) is stored in `localStorage` keyed by that UUID.
+- **Favicon**:
+  - Configured in `frontend/index.html`.
+  - Assets live in `frontend/public/` (current favicon is `favicon-32x32.png`).
 - **Theming & layout**:
   - Mobile-first layout; puzzle dominates the viewport on phones, with sidebar copy on larger screens.
   - Light/dark mode respects `prefers-color-scheme` and offers a manual toggle.
@@ -23,10 +26,11 @@ This repository is public and intentionally omits any secrets or environment-spe
   - GA4 `user_id` is set to the visitor UUID.
   - Custom events for puzzle lifecycle and email submission (no raw emails or PII sent to GA).
 - **Email capture UI**:
-  - When the puzzle is complete (or via an admin override), a modal appears:
+  - When the puzzle is complete (or via an admin override), a completion UI appears (bottom sheet on mobile, modal-style on desktop via `BottomSheet`):
     - Explains the chicago.com concept.
     - Provides an email input and CTA.
     - Pushes to the backend email capture API.
+  - Tapping a placed neighborhood opens a `NeighborhoodCard` with neighborhood name and optional context.
 
 ### Backend (Node + Express + Postgres)
 
@@ -43,8 +47,8 @@ This repository is public and intentionally omits any secrets or environment-spe
   - Minimal in-memory rate limiting to reduce abuse on `/api/early-access`.
   - Security headers: `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff` on all responses.
 - **Before production (handoff checklist)**:
-  - Set `ALLOWED_ORIGIN` to the frontend origin (not `*`).
-  - Ensure `DATABASE_URL`, `VITE_BACKEND_URL`, and `VITE_GA_MEASUREMENT_ID` are set in production envs.
+  - Set `ALLOWED_ORIGIN` to the frontend origin, or rely on the backend default (`https://puzzle-map-production.up.railway.app`) if that is the live frontend.
+  - Ensure `DATABASE_URL` is set on the backend and `VITE_BACKEND_URL` (and optionally `VITE_GA_MEASUREMENT_ID`) on the frontend build.
   - Apply the `signups` table schema to the production DB before first deploy.
   - Run `npm audit` in `frontend/` and `backend/` and address any findings.
 
@@ -53,26 +57,28 @@ This repository is public and intentionally omits any secrets or environment-spe
 ## Repository structure (conceptual)
 
 - `frontend/`
-  - `src/App.tsx` – main layout, theme, puzzle container, completion modal, GA4 wiring.
-  - `src/components/PuzzleCanvas.tsx` – SVG puzzle, drag/snap/lock mechanics, persistence integration.
+  - `src/App.tsx` – main layout, theme, puzzle container, completion UI (BottomSheet), GA4 wiring.
+  - `src/components/PuzzleCanvas.tsx` – SVG puzzle (d3-geo), drag/snap/lock mechanics, persistence integration; loads `/chicago_neighborhoods.geojson`.
+  - `src/components/BottomSheet.tsx` – completion / email-capture UI (bottom sheet on mobile, modal-style on desktop).
+  - `src/components/NeighborhoodCard.tsx` – card shown when tapping a placed neighborhood.
   - `src/components/ErrorBoundary.tsx` – catches render errors and shows a friendly message with retry.
   - `src/analytics.ts` – GA4 initialization and custom event helpers.
+  - `src/content.ts` – user-facing copy (keep in sync with `docs/page-copy.md`).
   - `src/persistence.ts` – UUID generation, cookie + `localStorage` helpers, puzzle state load/save.
-  - `public/chicago_neighborhoods.geojson` (or equivalent) – GeoJSON for Chicago neighborhoods.
+  - `public/chicago_neighborhoods.geojson` – GeoJSON for Chicago neighborhoods (City of Chicago Boundaries – Neighborhoods).
 - `backend/`
-  - `index.js` – Express app, `/healthz`, `/api/early-access`, CORS, rate limiting.
+  - `index.js` – Express app, `/healthz`, `/api/early-access`, CORS, rate limiting (in-memory; 20 req/min per key).
   - `export-signups.js` – Node script to export `signups` as CSV.
   - `package.json` – backend scripts and dependencies.
 - `docs/`
-  - Product brief, design standards, rendering notes, and other reference material (not code).
-  - **`docs/page-copy.md`** — single place to view and edit all page copy; after editing, update `frontend/src/content.ts` to match.
+  - **`docs/page-copy.md`** – single source of truth for page copy; after editing, update `frontend/src/content.ts` to match.
 
-This separation lets engineering iterate on frontend and backend deployments independently while keeping product, design, and analytics decisions centralized in `docs/`.
+This separation lets engineering iterate on frontend and backend deployments independently while keeping product and copy decisions in `docs/`.
 
 ### SEO and indexing
 
-- **Current (pre-public):** Indexing is disallowed via `<meta name="robots" content="noindex, nofollow">` in `frontend/index.html` and `frontend/public/robots.txt` (`Disallow: /`). The page has SEO-friendly metadata (title, description, Open Graph, Twitter card) that teases chicago.com.
-- **When going public:** Remove the `robots` meta tag (or set to `index, follow`) and update or remove `public/robots.txt` so crawlers can index the site. Optionally set `og:url` and a canonical URL once the production URL is fixed.
+- **Current (pre-public):** Indexing is disallowed via `<meta name="robots" content="noindex, nofollow">` in `frontend/index.html` and `frontend/public/robots.txt` (`User-agent: *` / `Disallow: /`). The page has SEO-friendly metadata (title, description, Open Graph, Twitter card) that teases chicago.com.
+- **When going public:** Remove the `robots` meta tag (or set to `index, follow`) and update or remove `frontend/public/robots.txt` so crawlers can index the site. Set `og:url` and a canonical URL to the production frontend (e.g. `https://puzzle-map-production.up.railway.app`).
 
 ---
 
@@ -83,16 +89,16 @@ This separation lets engineering iterate on frontend and backend deployments ind
 - **Method**: `POST`
 - **Path**: `/api/early-access`
 - **Base URL**:
-  - **Production**: `https://<your-backend-host>/api/early-access`
-  - **Local**: `http://localhost:<backend-port>/api/early-access`
+  - **Production**: backend is a separate Railway service; use that service’s URL (e.g. `https://puzzle-map-backend-production.up.railway.app`). Set `VITE_BACKEND_URL` in the frontend build to this value.
+  - **Local**: `http://localhost:4000/api/early-access` (or whatever `PORT` the backend uses).
 
-The frontend usually sets a `VITE_BACKEND_URL` such as:
+The frontend uses `VITE_BACKEND_URL` at build time and calls `VITE_BACKEND_URL + '/api/early-access'`. Example:
 
 ```text
-VITE_BACKEND_URL=https://<your-backend-host>
+VITE_BACKEND_URL=https://puzzle-map-backend-production.up.railway.app
 ```
 
-and then calls `VITE_BACKEND_URL + /api/early-access`.
+Confirm the exact production backend URL with engineering/ops.
 
 ### Request payload
 
@@ -165,7 +171,7 @@ JSON body:
   - `Access-Control-Allow-Headers`: `Content-Type`.
 
 - For production use:
-  - `ALLOWED_ORIGIN` should be set to the **frontend’s origin** (e.g., `https://<frontend-host>`).
+  - `ALLOWED_ORIGIN` should be set to the **frontend’s origin**. If unset in production, the backend defaults to `https://puzzle-map-production.up.railway.app` (the current frontend deployment).
   - Frontend calls the backend over HTTPS using `fetch` with `Content-Type: application/json`.
 
 No authentication token is required for this prototype; the main guardrails are origin scoping and rate limiting.
@@ -294,6 +300,34 @@ This gives enough signal to understand funnel performance (view → start → co
 
 ---
 
+## Environments
+
+| Environment | Frontend URL | Backend URL | Notes |
+|-------------|--------------|-------------|--------|
+| **Local** | `http://localhost:5173` | `http://localhost:4000` | Run frontend and backend yourself; see [Local development](#local-development-high-level) below. |
+| **Production** | `https://puzzle-map-production.up.railway.app` | Separate Railway service | Backend URL is set via `VITE_BACKEND_URL` at frontend build time. Confirm exact backend host with engineering/ops. |
+
+### Environment variables
+
+- **Frontend** (build-time; use `frontend/.env` locally; do not commit — `.env` is in `.gitignore`):
+  - `VITE_BACKEND_URL` – base URL of the backend (e.g. `http://localhost:4000` locally, production backend URL in prod).
+  - `VITE_GA_MEASUREMENT_ID` – (optional) GA4 Measurement ID for analytics.
+- **Backend** (runtime):
+  - `PORT` – server port (default `4000`).
+  - `DATABASE_URL` – Postgres connection string (required for `/api/early-access`).
+  - `ALLOWED_ORIGIN` – CORS origin for `/api/early-access`; if unset in production, defaults to `https://puzzle-map-production.up.railway.app`.
+  - `NODE_ENV` – set to `production` in production (affects CORS default).
+  - `PGSSL` – set to `disable` to turn off SSL for Postgres (e.g. some local setups).
+
+### Deploying to production
+
+- **Frontend**: Deploy the `frontend/` app as a static site (e.g. Railway static site, or build with `npm run build` and serve the `dist/` output). Set `VITE_BACKEND_URL` and optionally `VITE_GA_MEASUREMENT_ID` in the build environment.
+- **Backend**: Deploy the `backend/` Node app (e.g. Railway Node service). Set `DATABASE_URL`, `ALLOWED_ORIGIN` (or rely on production default), and ensure `NODE_ENV=production`. Start with `npm start`.
+- Ensure the `signups` table exists in the production Postgres instance (see [Data model](#data-model-signups-table)).
+- Run `npm audit` in both `frontend/` and `backend/` and address findings before release.
+
+---
+
 ## Local development (high-level)
 
 This repository is set up so engineers can run both frontend and backend locally, using environment variables for external services.
@@ -313,9 +347,9 @@ npm run dev
 ```
 
 - Dev server by default on `http://localhost:5173/` (Vite default).
-- The frontend **expects**:
-  - `VITE_BACKEND_URL` for the email endpoint (e.g., `http://localhost:4000` for local dev).
-  - `VITE_GA_MEASUREMENT_ID` if you want GA4 tracking in local builds (not required).
+- The frontend uses:
+  - `VITE_BACKEND_URL` for the email endpoint (e.g. `http://localhost:4000` for local dev).
+  - `VITE_GA_MEASUREMENT_ID` (optional) for GA4 tracking in local builds.
 
 ### Backend (local)
 
@@ -331,7 +365,7 @@ npm run dev
   - `POST /api/early-access` → writes to your configured Postgres.
 - Default port is `4000` unless `PORT` is set.
 
-Frontends running locally can point to `http://localhost:4000` via `VITE_BACKEND_URL`.
+Frontends running locally should set `VITE_BACKEND_URL=http://localhost:4000` (e.g. in `frontend/.env`).
 
 ---
 
@@ -361,29 +395,27 @@ Source: [City of Chicago – Boundaries – Neighborhoods](https://data.cityofch
 
 This section describes how to walk through the live Railway deployment for demos.
 
-- **Production URL**
-  - Frontend: `https://<your-frontend-host>` (e.g., a `railway.app` or custom domain).
-  - Backend: `https://<your-backend-host>` (used by the frontend via `VITE_BACKEND_URL`).
-
-Confirm with engineering/ops which exact domains are currently live and configured.
+- **Production URLs**
+  - **Frontend**: `https://puzzle-map-production.up.railway.app`
+  - **Backend**: Separate Railway service; the frontend is built with `VITE_BACKEND_URL` pointing to it. Confirm the exact backend URL with engineering/ops if you need to call it directly (e.g. for health checks).
 
 ### 1. Pre-demo checks
 
 - **Health**
-  - Visit `https://<your-backend-host>/healthz` and confirm it returns `{"status":"ok"}`.
+  - Visit the backend health endpoint (e.g. `https://<backend-host>/healthz`) and confirm it returns `{"status":"ok"}`. Use the same host as configured in `VITE_BACKEND_URL`.
 - **Frontend load**
-  - Open the frontend URL on:
+  - Open **https://puzzle-map-production.up.railway.app** on:
     - A recent mobile phone (portrait).
     - A desktop browser (wider viewport).
   - Verify the puzzle loads within a few seconds and neighborhood shapes render clearly.
 - **Environment**
-  - Ensure `VITE_BACKEND_URL` and `ALLOWED_ORIGIN` are configured so email capture works end‑to‑end.
+  - Ensure production `VITE_BACKEND_URL` and backend `ALLOWED_ORIGIN` are set so email capture works end‑to‑end (backend defaults `ALLOWED_ORIGIN` to the frontend URL above).
   - Optionally, confirm GA4 events are visible in the GA4 debug view for the Measurement ID in use.
 
 ### 2. Standard demo path (normal user)
 
 1. **Landing**
-   - Load the frontend URL.
+   - Load **https://puzzle-map-production.up.railway.app**.
    - Point out the headline and subheadline (e.g. “Let’s build a better Chicago together.”).
    - Toggle between light and dark themes using the `Theme` toggle to show theming.
 2. **Play the puzzle**
@@ -395,8 +427,8 @@ Confirm with engineering/ops which exact domains are currently live and configur
 3. **Complete the puzzle**
    - Finish placing the remaining pieces.
    - Note the completion caption below the puzzle.
-4. **Completion modal + email capture**
-   - When the completion modal appears:
+4. **Completion UI + email capture**
+   - When the completion bottom sheet/modal appears:
      - Read the “You mapped Chicago.” title and short description.
      - Enter a test email (e.g., `demo+timestamp@example.org`) and click **Get early access updates**.
      - Show the success confirmation copy.
@@ -408,12 +440,12 @@ Confirm with engineering/ops which exact domains are currently live and configur
 
 Use this when you want to skip directly to the “completed puzzle + email prompt” state.
 
-1. Load the frontend URL.
-2. Click/tap the main H1 title (the main headline) **5 times within ~3 seconds**.
+1. Load **https://puzzle-map-production.up.railway.app**.
+2. Click/tap the main headline (H1) **5 times within ~3 seconds**.
 3. Observe:
    - All pieces snap into place.
    - The app treats the puzzle as completed in local state.
-   - The completion/email modal opens automatically.
+   - The completion/email bottom sheet or modal opens automatically.
 4. Explain that:
    - GA4 receives an `override_jump_to_complete` event with `admin_override: true`.
    - This lets internal demo traffic be segmented from organic user behavior.
