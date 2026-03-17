@@ -84,3 +84,13 @@
   box-shadow: var(--shadow-strong);
 }
 
+@media (max-width: 767px) {
+  .neighborhood-card--sheet {
+    box-sizing: border-box;
+    max-width: 100%;
+    min-width: 0;
+    overflow-wrap: break-word;
+    word-wrap: break-word;
+  }
+}
+

@@ -660,7 +660,13 @@ export function PuzzleCanvas({
       const id = (e.currentTarget as SVGElement).getAttribute('data-piece-id')
       if (!id) return
       const piece = pieces.find((p) => p.id === id)
-      if (!piece || piece.isLocked) return
+      if (!piece) return
+      if (piece.isLocked) {
+        if (piece.name) {
+          onNeighborhoodTap?.(piece.name)
+        }
+        return
+      }
       e.preventDefault()
       e.currentTarget.setPointerCapture(e.pointerId)
       const pt = getSvgPoint(e.clientX, e.clientY)
