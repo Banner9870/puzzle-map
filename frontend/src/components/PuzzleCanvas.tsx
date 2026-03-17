@@ -826,6 +826,10 @@ export function PuzzleCanvas({
         return
       }
       e.preventDefault()
+      if (!isDragActiveRef.current) {
+        isDragActiveRef.current = true
+        onDragActiveChange?.(true)
+      }
       if (debugEnabledRef.current) {
         lastDebugEventRef.current = 'pointerdown'
         console.info('[PuzzleCanvas debug] pointerdown', {
@@ -920,6 +924,10 @@ export function PuzzleCanvas({
 
       const wasDrag = dragStartedRef.current
       dragStartedRef.current = false
+      if (isDragActiveRef.current) {
+        isDragActiveRef.current = false
+        onDragActiveChange?.(false)
+      }
       if (isDragActiveRef.current) {
         isDragActiveRef.current = false
         onDragActiveChange?.(false)

@@ -118,6 +118,36 @@ button:focus-visible {
   background-color: var(--bg-primary);
 }
 
+@media (max-width: 767px) {
+  html,
+  body {
+    height: 100svh;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  #root {
+    height: 100%;
+    min-height: 0;
+  }
+
+  .page {
+    height: 100%;
+    min-height: 0;
+  }
+
+  .page-inner {
+    flex: 1 1 auto;
+    max-height: 100%;
+    overflow: hidden;
+  }
+
+  .layout-main {
+    flex: 1 1 auto;
+    overflow: hidden;
+  }
+}
+
 .page-inner {
   flex: 1;
   display: flex;
