@@ -20,6 +20,15 @@ function isDebugEnabled(): boolean {
   }
 }
 
+function isIosSafari(): boolean {
+  if (typeof navigator === 'undefined') return false
+  const ua = navigator.userAgent || navigator.vendor || ''
+  const isIos = /iPhone|iPad|iPod/i.test(ua)
+  const isSafari =
+    /Safari/i.test(ua) && !/Chrome|CriOS|FxiOS|EdgiOS|OPiOS|OPR/i.test(ua)
+  return isIos && isSafari
+}
+
 /* GeoJSON and runtime piece state types; props include callbacks and optional force signals from App. */
 type NeighborhoodFeature = {
   type: 'Feature'
@@ -681,6 +690,32 @@ export function PuzzleCanvas({
     }
   }, [scheduleDebugHudUpdate])
 
+  useEffect(() => {
+    if (!isIosSafari()) return
+    const svg = svgRef.current
+    if (!svg) return
+
+    const handleNativeMove = (e: PointerEvent) => {
+      if (e.pointerType !== 'touch') return
+      ;(handlePointerMove as unknown as (event: PointerEvent) => void)(e)
+    }
+
+    const handleNativeUpOrCancel = (e: PointerEvent) => {
+      if (e.pointerType !== 'touch') return
+      ;(handlePointerUp as unknown as (event: PointerEvent) => void)(e)
+    }
+
+    svg.addEventListener('pointermove', handleNativeMove)
+    svg.addEventListener('pointerup', handleNativeUpOrCancel)
+    svg.addEventListener('pointercancel', handleNativeUpOrCancel)
+
+    return () => {
+      svg.removeEventListener('pointermove', handleNativeMove)
+      svg.removeEventListener('pointerup', handleNativeUpOrCancel)
+      svg.removeEventListener('pointercancel', handleNativeUpOrCancel)
+    }
+  }, [handlePointerMove, handlePointerUp])
+
   /* Persists completed flag and lockedPieceIds whenever pieces change. */
   useEffect(() => {
     if (!visitorId || pieces.length === 0) return
@@ -838,6 +873,9 @@ export function PuzzleCanvas({
       setDraggingPieceId(id) // for sort/z + CSS class
       setIsDragMoving(false)
       dragStartedRef.current = false
+      if (piece.name) {
+        onNeighborhoodTap?.(piece.name)
+      }
     },
     [pieces, getSvgPoint, onNeighborhoodTap],
   )
