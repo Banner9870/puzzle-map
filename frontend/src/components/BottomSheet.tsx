@@ -14,6 +14,15 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value))
 }
 
+function isDebugEnabled(): boolean {
+  if (typeof window === 'undefined') return false
+  try {
+    return new URLSearchParams(window.location.search).has('debug')
+  } catch {
+    return false
+  }
+}
+
 export function BottomSheet(props: {
   title: string
   peekHeightPx?: number
@@ -21,6 +30,7 @@ export function BottomSheet(props: {
   children: React.ReactNode
 }) {
   const { title, children, peekHeightPx = 84, defaultSnap = 'collapsed' } = props
+  const debugEnabledRef = useRef(isDebugEnabled())
 
   const sheetRef = useRef<HTMLDivElement | null>(null)
   const [maxTranslateY, setMaxTranslateY] = useState(0)
@@ -51,6 +61,16 @@ export function BottomSheet(props: {
     const measure = () => {
       const rect = el.getBoundingClientRect()
       const nextMax = Math.max(0, Math.round(rect.height - peekHeightPx))
+      if (debugEnabledRef.current) {
+        console.info('[BottomSheet debug] measure', {
+          height: Math.round(rect.height),
+          peekHeightPx,
+          nextMaxTranslateY: nextMax,
+          prevMaxTranslateY: maxTranslateY,
+          snap,
+          translateY,
+        })
+      }
       // Content changes (like switching neighborhoods) can change height and thus maxTranslateY.
       // Suppress the transform transition for this automatic adjustment to avoid a "bounce".
       if (nextMax !== maxTranslateY && !dragStateRef.current?.isDragging) {
@@ -61,7 +81,13 @@ export function BottomSheet(props: {
         suppressTransitionRafRef.current = requestAnimationFrame(() => {
           suppressTransitionRafRef.current = null
           setSuppressTransition(false)
+          if (debugEnabledRef.current) {
+            console.info('[BottomSheet debug] suppressTransition off')
+          }
         })
+        if (debugEnabledRef.current) {
+          console.info('[BottomSheet debug] suppressTransition on')
+        }
       }
       setMaxTranslateY(nextMax)
     }
