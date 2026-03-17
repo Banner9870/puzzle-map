@@ -221,7 +221,7 @@ button:focus-visible {
 
 .puzzle-piece--locked {
   cursor: default;
-  pointer-events: none;
+  pointer-events: auto;
   filter: none;
 }
 
