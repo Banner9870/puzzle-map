@@ -838,9 +838,6 @@ export function PuzzleCanvas({
       setDraggingPieceId(id) // for sort/z + CSS class
       setIsDragMoving(false)
       dragStartedRef.current = false
-      if (piece.name) {
-        onNeighborhoodTap?.(piece.name)
-      }
     },
     [pieces, getSvgPoint, onNeighborhoodTap],
   )
