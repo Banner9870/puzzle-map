@@ -74,6 +74,7 @@ function App() {
   const [forceShuffleSignal, setForceShuffleSignal] = useState(0)
   const [forceClearSignal, setForceClearSignal] = useState(0)
   const [isMobilePortrait, setIsMobilePortrait] = useState(false)
+  const [isDragActive, setIsDragActive] = useState(false)
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme
@@ -394,6 +395,7 @@ function App() {
                   forceCompleteSignal={forceCompleteSignal}
                   forceShuffleSignal={forceShuffleSignal}
                   forceClearSignal={forceClearSignal}
+                  onDragActiveChange={setIsDragActive}
                   onPuzzleStarted={() => {
                     if (hasEmittedPuzzleStarted) return
                     const now =
@@ -436,7 +438,10 @@ function App() {
         </section>
 
         {isMobilePortrait && (
-          <BottomSheet title={lastNeighborhood ?? 'Tap a neighborhood.'}>
+          <BottomSheet
+            title={lastNeighborhood ?? 'Tap a neighborhood.'}
+            dragActive={isDragActive}
+          >
             <NeighborhoodCard neighborhoodName={lastNeighborhood} variant="sheet" />
           </BottomSheet>
         )}

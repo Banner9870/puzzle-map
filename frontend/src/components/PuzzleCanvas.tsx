@@ -69,6 +69,8 @@ type PuzzleCanvasProps = {
   visitorId?: string | null
   onPuzzleStarted?: () => void
   onMove?: () => void
+  /** Notify parent when a drag becomes active/inactive (used to pause bottom-sheet reflow). */
+  onDragActiveChange?: (active: boolean) => void
   forceCompleteSignal?: number
   /** Increment to re-scatter all unlocked pieces (e.g. after resize or to shuffle). */
   forceShuffleSignal?: number
@@ -240,6 +242,7 @@ export function PuzzleCanvas({
   visitorId,
   onPuzzleStarted,
   onMove,
+  onDragActiveChange,
   forceCompleteSignal,
   forceShuffleSignal = 0,
   forceClearSignal = 0,
@@ -259,6 +262,7 @@ export function PuzzleCanvas({
   /** Back-to-front order of unlocked piece ids; used for draw order and tap-to-cycle. */
   const [unlockedOrder, setUnlockedOrder] = useState<string[]>([])
   const dragStartedRef = useRef(false)
+  const isDragActiveRef = useRef(false)
   const hasReportedPuzzleStartedRef = useRef(false)
   const piecesRef = useRef<PieceState[]>([])
   const pieceByIdRef = useRef(new Map<string, PieceState>())
@@ -868,6 +872,10 @@ export function PuzzleCanvas({
         return
       }
       dragStartedRef.current = true
+      if (!isDragActiveRef.current) {
+        isDragActiveRef.current = true
+        onDragActiveChange?.(true)
+      }
       if (!isDragMoving) setIsDragMoving(true)
       if (!hasReportedPuzzleStartedRef.current) {
         hasReportedPuzzleStartedRef.current = true
@@ -912,6 +920,10 @@ export function PuzzleCanvas({
 
       const wasDrag = dragStartedRef.current
       dragStartedRef.current = false
+      if (isDragActiveRef.current) {
+        isDragActiveRef.current = false
+        onDragActiveChange?.(false)
+      }
 
       if (piece.name) {
         onNeighborhoodTap?.(piece.name)

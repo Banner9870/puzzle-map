@@ -27,9 +27,17 @@ export function BottomSheet(props: {
   title: string
   peekHeightPx?: number
   defaultSnap?: SnapPoint
+  /** When true, pause re-measuring while the puzzle is being dragged. */
+  dragActive?: boolean
   children: React.ReactNode
 }) {
-  const { title, children, peekHeightPx = 84, defaultSnap = 'collapsed' } = props
+  const {
+    title,
+    children,
+    peekHeightPx = 84,
+    defaultSnap = 'collapsed',
+    dragActive = false,
+  } = props
   const debugEnabledRef = useRef(isDebugEnabled())
 
   const sheetRef = useRef<HTMLDivElement | null>(null)
@@ -59,6 +67,7 @@ export function BottomSheet(props: {
     if (!el) return
 
     const measure = () => {
+      if (dragActive) return
       const rect = el.getBoundingClientRect()
       const nextMax = Math.max(0, Math.round(rect.height - peekHeightPx))
       if (debugEnabledRef.current) {
