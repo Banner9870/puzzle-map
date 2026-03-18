@@ -20,15 +20,6 @@ function isDebugEnabled(): boolean {
   }
 }
 
-function isIosSafari(): boolean {
-  if (typeof navigator === 'undefined') return false
-  const ua = navigator.userAgent || navigator.vendor || ''
-  const isIos = /iPhone|iPad|iPod/i.test(ua)
-  const isSafari =
-    /Safari/i.test(ua) && !/Chrome|CriOS|FxiOS|EdgiOS|OPiOS|OPR/i.test(ua)
-  return isIos && isSafari
-}
-
 /* GeoJSON and runtime piece state types; props include callbacks and optional force signals from App. */
 type NeighborhoodFeature = {
   type: 'Feature'
@@ -842,9 +833,7 @@ export function PuzzleCanvas({
         })
         scheduleDebugHudUpdate()
       }
-      if (!isIosSafari()) {
-        svgRef.current?.setPointerCapture(e.pointerId)
-      }
+      svgRef.current?.setPointerCapture(e.pointerId)
       svgInverseCtmRef.current = svgRef.current?.getScreenCTM()?.inverse() ?? null
       const pt = getSvgPoint(e.clientX, e.clientY)
       dragOffsetRef.current = {
@@ -857,9 +846,6 @@ export function PuzzleCanvas({
       setDraggingPieceId(id) // for sort/z + CSS class
       setIsDragMoving(false)
       dragStartedRef.current = false
-      if (piece.name) {
-        onNeighborhoodTap?.(piece.name)
-      }
     },
     [pieces, getSvgPoint, onNeighborhoodTap],
   )
@@ -1004,42 +990,6 @@ export function PuzzleCanvas({
     },
     [onNeighborhoodTap, onCompleted, onMove],
   )
-
-  useEffect(() => {
-    if (!isIosSafari()) return
-
-    const handleNativeMove = (e: PointerEvent) => {
-      if (e.pointerType !== 'touch') return
-      if (
-        draggingPointerIdRef.current != null &&
-        e.pointerId !== draggingPointerIdRef.current
-      ) {
-        return
-      }
-      ;(handlePointerMove as unknown as (event: PointerEvent) => void)(e)
-    }
-
-    const handleNativeUpOrCancel = (e: PointerEvent) => {
-      if (e.pointerType !== 'touch') return
-      if (
-        draggingPointerIdRef.current != null &&
-        e.pointerId !== draggingPointerIdRef.current
-      ) {
-        return
-      }
-      ;(handlePointerUp as unknown as (event: PointerEvent) => void)(e)
-    }
-
-    window.addEventListener('pointermove', handleNativeMove)
-    window.addEventListener('pointerup', handleNativeUpOrCancel)
-    window.addEventListener('pointercancel', handleNativeUpOrCancel)
-
-    return () => {
-      window.removeEventListener('pointermove', handleNativeMove)
-      window.removeEventListener('pointerup', handleNativeUpOrCancel)
-      window.removeEventListener('pointercancel', handleNativeUpOrCancel)
-    }
-  }, [handlePointerMove, handlePointerUp])
 
   const isNarrow = dimensions.width < 600
   const pieceStrokeWidth = isNarrow ? 1.2 : 1.8
