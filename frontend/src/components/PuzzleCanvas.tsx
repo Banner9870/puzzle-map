@@ -62,6 +62,8 @@ type PuzzleCanvasProps = {
 
 /* Snap distance (SVG units) and scatter layout tuning; increase SNAP_TOLERANCE to make snapping easier. */
 const SNAP_TOLERANCE = 24
+const TAP_DISTANCE_PX = 8
+const TAP_TIME_MS = 350
 const SCATTER_MARGIN = 16
 const SCATTER_GAP = 24
 
@@ -254,6 +256,8 @@ export function PuzzleCanvas({
   const draggingPointerIdRef = useRef<number | null>(null)
   const dragOffsetRef = useRef<{ x: number; y: number } | null>(null)
   const dragCenterRef = useRef<{ x: number; y: number } | null>(null)
+  const pointerDownClientRef = useRef<{ x: number; y: number } | null>(null)
+  const pointerDownTimeRef = useRef<number>(0)
   const rafPendingRef = useRef(false)
   const pieceElByIdRef = useRef(new Map<string, SVGGElement>())
 
@@ -715,9 +719,9 @@ export function PuzzleCanvas({
       setDraggingPieceId(id) // for sort/z + CSS class
       setIsDragMoving(false)
       dragStartedRef.current = false
-      if (piece.name) {
-        onNeighborhoodTap?.(piece.name)
-      }
+      pointerDownClientRef.current = { x: e.clientX, y: e.clientY }
+      pointerDownTimeRef.current =
+        typeof performance !== 'undefined' ? performance.now() : Date.now()
     },
     [pieces, getSvgPoint, onNeighborhoodTap],
   )
@@ -774,7 +778,22 @@ export function PuzzleCanvas({
       const wasDrag = dragStartedRef.current
       dragStartedRef.current = false
 
-      if (piece.name) {
+      // Only open neighborhood details when we’re confident this was a tap.
+      // On iOS Safari, drag attempts can intermittently lose pointermove/pointer capture;
+      // using a movement+duration threshold prevents opening the sheet/card mid-gesture.
+      const startClient = pointerDownClientRef.current
+      const dx = startClient ? e.clientX - startClient.x : 0
+      const dy = startClient ? e.clientY - startClient.y : 0
+      const distSq = dx * dx + dy * dy
+      const durationMs =
+        typeof performance !== 'undefined'
+          ? performance.now() - pointerDownTimeRef.current
+          : Date.now() - pointerDownTimeRef.current
+      const wasTap =
+        !wasDrag &&
+        distSq <= TAP_DISTANCE_PX * TAP_DISTANCE_PX &&
+        durationMs <= TAP_TIME_MS
+      if (wasTap && piece.name) {
         onNeighborhoodTap?.(piece.name)
       }
       if (!wasDrag && !piece.isLocked) {
@@ -790,6 +809,8 @@ export function PuzzleCanvas({
       draggingPieceIdRef.current = null
       draggingPointerIdRef.current = null
       dragOffsetRef.current = null
+      pointerDownClientRef.current = null
+      pointerDownTimeRef.current = 0
 
       setPieces((prev) => {
         let snapped = false
