@@ -14,21 +14,6 @@
   --surface-elevated: #f9fafb;
   --map-outline: #9ca3af;
 
-  /* Puzzle piece styling (token-derived; no new hardcoded hex) */
-  --puzzle-piece-fill: color-mix(in oklab, var(--brand-red) 34%, transparent);
-  --puzzle-piece-fill-locked: color-mix(
-    in oklab,
-    var(--brand-red) 46%,
-    transparent
-  );
-  --puzzle-piece-stroke: var(--map-outline);
-  /* Visible border between placed pieces: red-tinted stroke so each piece reads as distinct. */
-  --puzzle-piece-stroke-locked: color-mix(
-    in oklab,
-    var(--brand-red) 85%,
-    var(--text-headline)
-  );
-
   /* Shadows & radii */
   --radius: 6px;
   --radius-lg: 10px;
@@ -53,27 +38,16 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
-html,
-body {
-  height: 100%;
-}
-
 body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
-  /* iOS Safari: match the *visual* viewport (URL bar). */
-  min-height: 100svh;
-  min-height: 100dvh;
   background-color: var(--bg-primary);
   color: var(--text-body);
-  overflow-x: hidden;
 }
 
 #root {
   min-height: 100vh;
-  min-height: 100svh;
-  min-height: 100dvh;
 }
 
 a {
@@ -113,8 +87,6 @@ button:focus-visible {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
-  min-height: 100svh;
-  min-height: 100dvh;
   background-color: var(--bg-primary);
 }
 
@@ -122,7 +94,7 @@ button:focus-visible {
   flex: 1;
   display: flex;
   flex-direction: column;
-  padding: var(--space-page-vertical) var(--space-page-horizontal) 0;
+  padding: var(--space-page-vertical) var(--space-page-horizontal) 3rem;
   max-width: var(--page-max-width);
   margin: 0 auto;
 }
@@ -171,15 +143,32 @@ button:focus-visible {
   gap: var(--space-block);
 }
 
-/* Teaser column: neighborhood panel on desktop; minimal, no heavy sidebar (CPM-style) */
+/* Single-line tease: minimal, no heavy sidebar (CPM-style) */
 .layout-main-teaser {
   padding: 0;
   margin: 0;
 }
 
+/* Hint in right column: no top margin, space below before teaser */
+.layout-main-teaser .puzzle-shell-caption--hint {
+  margin-top: 0;
+  margin-bottom: 1rem;
+}
+
+.teaser-text {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: var(--text-body);
+  font-style: italic;
+  max-width: 36rem;
+}
+
 .puzzle-shell {
   position: relative;
-  background-color: var(--bg-primary);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-strong);
+  background: radial-gradient(circle at top, #f3f4f6 0, #e5e7eb 40%, #d1d5db 100%);
   overflow: hidden;
 }
 
@@ -215,62 +204,6 @@ button:focus-visible {
   user-select: none;
 }
 
-.puzzle-piece {
-  --piece-dx: 0px;
-  --piece-dy: 0px;
-  transform-box: fill-box;
-  transform-origin: center;
-  transform: translate(var(--piece-dx), var(--piece-dy));
-  transition: transform 80ms ease-out;
-  will-change: transform;
-}
-
-.puzzle-piece--free {
-  filter: url(#piece-drop-shadow);
-  cursor: grab;
-  pointer-events: auto;
-}
-
-.puzzle-piece--locked {
-  cursor: default;
-  pointer-events: auto;
-  filter: none;
-}
-
-/* Avoid expensive filter recompute while dragging; keep motion instant. */
-.puzzle-piece--dragging {
-  transition: none;
-  filter: none;
-  cursor: grabbing;
-}
-
-/* Subtle lift feedback without recomputing SVG filters every move. */
-.puzzle-piece--moving {
-  transform: translate(var(--piece-dx), var(--piece-dy)) scale(1.04);
-}
-
-/* Snap is a moment: a slightly longer ease feels intentional but doesn’t block. */
-.puzzle-piece--snapped {
-  transition: transform 160ms ease-out;
-}
-
-.puzzle-piece-path {
-  fill: var(--puzzle-piece-fill);
-  stroke: var(--puzzle-piece-stroke);
-  fill-opacity: 0.3;
-}
-
-.puzzle-piece--locked .puzzle-piece-path {
-  fill: var(--puzzle-piece-fill-locked);
-  stroke: var(--puzzle-piece-stroke-locked);
-  stroke-width: 2px;
-  fill-opacity: 0.42;
-}
-
-.puzzle-piece--snapped .puzzle-piece-path {
-  fill-opacity: 0.55;
-}
-
 .puzzle-canvas-wrapper--error {
   display: flex;
   align-items: center;
@@ -293,42 +226,46 @@ button:focus-visible {
   }
 }
 
-/* Neighborhood card panel spacing in right column */
-.neighborhood-panel {
-  margin: 0 0 1rem;
+/* Hint line (e.g. "You last tapped X") — more visible, centered in tile */
+.puzzle-shell-caption--hint {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface-elevated);
+  padding: 0.75rem 1rem;
+  margin-top: 0.75rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--border-color);
+  font-weight: 500;
+  font-size: 1rem;
+  text-align: center;
+}
+
+.puzzle-shell-caption--hint strong {
+  color: var(--text-headline);
+  margin-left: 0.35em;
 }
 
 @media (max-width: 599px) {
   .puzzle-shell-caption {
     padding: 1rem;
   }
-}
 
-/* Mobile portrait: reserve space so the fixed bottom-sheet peek/handle doesn't cover the puzzle. */
-@media (max-width: 767px) and (orientation: portrait) {
-  .layout-main-primary {
-    padding-bottom: calc(84px + env(safe-area-inset-bottom));
+  .puzzle-shell-caption--hint {
+    margin-left: 0;
+    margin-right: 0;
   }
 }
 
-/* Footer — CPM / WBEZ style: multi-column links, logo, copyright row. Always dark theme so the white CPM logo is legible. Full-bleed black background in footer region only. */
+/* Footer — CPM / WBEZ style: multi-column links, logo, copyright row. Always dark theme so the white CPM logo is legible. */
 .page-footer {
-  box-sizing: border-box;
-  width: 100vw;
   margin-top: 2.5rem;
-  margin-left: calc(50% - 50vw);
   padding: 2rem var(--space-page-horizontal) 1.5rem;
-  background-color: #000000;
+  background-color: #0b1120;
   border-top: 1px solid #1f2937;
   font-size: 0.8rem;
   color: #9ca3af;
   line-height: 1.5;
-}
-
-@media (max-width: 767px) {
-  .page-footer {
-    padding-bottom: calc(1.5rem + 5rem);
-  }
 }
 
 .page-footer-grid {
@@ -448,7 +385,12 @@ button:focus-visible {
 }
 
 :root[data-theme='dark'] .puzzle-shell {
-  background-color: var(--bg-primary);
+  background: radial-gradient(
+    circle at top,
+    #111827 0,
+    #020617 40%,
+    #000000 100%
+  );
 }
 
 @media (min-width: 768px) {
@@ -488,5 +430,10 @@ button:focus-visible {
 }
 
 :root[data-theme='dark'] .puzzle-shell {
-  background-color: var(--bg-primary);
+  background: radial-gradient(
+    circle at top,
+    #111827 0,
+    #020617 40%,
+    #000000 100%
+  );
 }
