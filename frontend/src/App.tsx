@@ -5,9 +5,9 @@
 import './App.css'
 import { useEffect, useState } from 'react'
 import { PuzzleCanvas } from './components/PuzzleCanvas'
-import { BottomSheet } from './components/BottomSheet'
-import { NeighborhoodCard as NeighborhoodCardComponent } from './components/NeighborhoodCard'
+import { NeighborhoodCard } from './components/NeighborhoodCard'
 import { copy } from './content'
+import { NeighborhoodCard } from './components/NeighborhoodCard'
 import {
   clearPuzzleState,
   getEmailSubmitted,
@@ -74,7 +74,6 @@ function App() {
   const [forceShuffleSignal, setForceShuffleSignal] = useState(0)
   const [forceClearSignal, setForceClearSignal] = useState(0)
   const [isMobilePortrait, setIsMobilePortrait] = useState(false)
-  const [isDragActive, setIsDragActive] = useState(false)
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme
@@ -395,7 +394,6 @@ function App() {
                   forceCompleteSignal={forceCompleteSignal}
                   forceShuffleSignal={forceShuffleSignal}
                   forceClearSignal={forceClearSignal}
-                  onDragActiveChange={setIsDragActive}
                   onPuzzleStarted={() => {
                     if (hasEmittedPuzzleStarted) return
                     const now =
@@ -441,15 +439,12 @@ function App() {
         </section>
 
         {isMobilePortrait && (
-          <BottomSheet
-            title={lastNeighborhood ?? 'Tap a neighborhood.'}
-            dragActive={isDragActive}
+          <section
+            className="neighborhood-panel neighborhood-panel--mobile"
+            aria-label="Neighborhood details"
           >
-            <NeighborhoodCardComponent
-              neighborhoodName={lastNeighborhood}
-              variant="sheet"
-            />
-          </BottomSheet>
+            <NeighborhoodCard neighborhoodName={lastNeighborhood} variant="sheet" />
+          </section>
         )}
 
         {isCompletionModalOpen && (
