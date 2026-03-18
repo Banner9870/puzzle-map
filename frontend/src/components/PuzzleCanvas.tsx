@@ -842,9 +842,7 @@ export function PuzzleCanvas({
         })
         scheduleDebugHudUpdate()
       }
-      if (!isIosSafari()) {
-        svgRef.current?.setPointerCapture(e.pointerId)
-      }
+      svgRef.current?.setPointerCapture(e.pointerId)
       svgInverseCtmRef.current = svgRef.current?.getScreenCTM()?.inverse() ?? null
       const pt = getSvgPoint(e.clientX, e.clientY)
       dragOffsetRef.current = {
