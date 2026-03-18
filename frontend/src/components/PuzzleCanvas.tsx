@@ -772,7 +772,7 @@ export function PuzzleCanvas({
           }
           window.setTimeout(() => {
             setSnappedPieceId((current) => (current === id ? null : current))
-          }, 250)
+          }, 320)
         }
         return next
       })
@@ -921,13 +921,22 @@ export function PuzzleCanvas({
                 <path
                   d={piece.pathString}
                   fill="var(--brand-red, #ed0000)"
-                  fillOpacity={isSnapped ? 0.55 : 0.3}
+                  fillOpacity={
+                    isSnapped ? 0.62 : piece.isLocked ? 0.45 : 0.3
+                  }
                   stroke="var(--map-outline, #9ca3af)"
-                  strokeWidth={isSnapped ? pieceStrokeWidth + 0.5 : pieceStrokeWidth}
+                  strokeWidth={
+                    isSnapped
+                      ? pieceStrokeWidth + 0.6
+                      : piece.isLocked
+                        ? pieceStrokeWidth + 0.25
+                        : pieceStrokeWidth
+                  }
                   style={{
                     cursor: piece.isLocked ? 'default' : 'grab',
-                    transition: isSnapped
-                      ? 'fill-opacity 200ms ease-out, stroke-width 200ms ease-out'
+                    // Animate both the snap pulse and the "settle" into the locked/placed look.
+                    transition: piece.isLocked
+                      ? 'fill-opacity 240ms ease-out, stroke-width 240ms ease-out'
                       : undefined,
                   }}
                   aria-label={piece.name}
