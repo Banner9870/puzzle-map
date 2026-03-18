@@ -14,6 +14,21 @@
   --surface-elevated: #f9fafb;
   --map-outline: #9ca3af;
 
+  /* Puzzle piece styling (token-derived; no new hardcoded hex) */
+  --puzzle-piece-fill: color-mix(in oklab, var(--brand-red) 34%, transparent);
+  --puzzle-piece-fill-locked: color-mix(
+    in oklab,
+    var(--brand-red) 46%,
+    transparent
+  );
+  --puzzle-piece-stroke: var(--map-outline);
+  /* Visible border between placed pieces: red-tinted stroke so each piece reads as distinct. */
+  --puzzle-piece-stroke-locked: color-mix(
+    in oklab,
+    var(--brand-red) 85%,
+    var(--text-headline)
+  );
+
   /* Shadows & radii */
   --radius: 6px;
   --radius-lg: 10px;
@@ -143,25 +158,10 @@ button:focus-visible {
   gap: var(--space-block);
 }
 
-/* Single-line tease: minimal, no heavy sidebar (CPM-style) */
+/* Teaser column: neighborhood panel on desktop; minimal, no heavy sidebar (CPM-style) */
 .layout-main-teaser {
   padding: 0;
   margin: 0;
-}
-
-/* Hint in right column: no top margin, space below before teaser */
-.layout-main-teaser .puzzle-shell-caption--hint {
-  margin-top: 0;
-  margin-bottom: 1rem;
-}
-
-.teaser-text {
-  margin: 0;
-  font-size: 0.95rem;
-  line-height: 1.5;
-  color: var(--text-body);
-  font-style: italic;
-  max-width: 36rem;
 }
 
 .puzzle-shell {
@@ -204,6 +204,62 @@ button:focus-visible {
   user-select: none;
 }
 
+.puzzle-piece {
+  --piece-dx: 0px;
+  --piece-dy: 0px;
+  transform-box: fill-box;
+  transform-origin: center;
+  transform: translate(var(--piece-dx), var(--piece-dy));
+  transition: transform 80ms ease-out;
+  will-change: transform;
+}
+
+.puzzle-piece--free {
+  filter: url(#piece-drop-shadow);
+  cursor: grab;
+  pointer-events: auto;
+}
+
+.puzzle-piece--locked {
+  cursor: default;
+  pointer-events: auto;
+  filter: none;
+}
+
+/* Avoid expensive filter recompute while dragging; keep motion instant. */
+.puzzle-piece--dragging {
+  transition: none;
+  filter: none;
+  cursor: grabbing;
+}
+
+/* Subtle lift feedback without recomputing SVG filters every move. */
+.puzzle-piece--moving {
+  transform: translate(var(--piece-dx), var(--piece-dy)) scale(1.04);
+}
+
+/* Snap is a moment: a slightly longer ease feels intentional but doesn’t block. */
+.puzzle-piece--snapped {
+  transition: transform 160ms ease-out;
+}
+
+.puzzle-piece-path {
+  fill: var(--puzzle-piece-fill);
+  stroke: var(--puzzle-piece-stroke);
+  fill-opacity: 0.3;
+}
+
+.puzzle-piece--locked .puzzle-piece-path {
+  fill: var(--puzzle-piece-fill-locked);
+  stroke: var(--puzzle-piece-stroke-locked);
+  stroke-width: 2px;
+  fill-opacity: 0.42;
+}
+
+.puzzle-piece--snapped .puzzle-piece-path {
+  fill-opacity: 0.55;
+}
+
 .puzzle-canvas-wrapper--error {
   display: flex;
   align-items: center;
@@ -226,34 +282,14 @@ button:focus-visible {
   }
 }
 
-/* Hint line (e.g. "You last tapped X") — more visible, centered in tile */
-.puzzle-shell-caption--hint {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--surface-elevated);
-  padding: 0.75rem 1rem;
-  margin-top: 0.75rem;
-  border-radius: var(--radius);
-  border: 1px solid var(--border-color);
-  font-weight: 500;
-  font-size: 1rem;
-  text-align: center;
-}
-
-.puzzle-shell-caption--hint strong {
-  color: var(--text-headline);
-  margin-left: 0.35em;
+/* Neighborhood card panel spacing in right column */
+.neighborhood-panel {
+  margin: 0 0 1rem;
 }
 
 @media (max-width: 599px) {
   .puzzle-shell-caption {
     padding: 1rem;
-  }
-
-  .puzzle-shell-caption--hint {
-    margin-left: 0;
-    margin-right: 0;
   }
 }
 

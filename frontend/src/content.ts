@@ -13,16 +13,17 @@ export const copy = {
   completionCaption:
     "Puzzle complete. Check the message below to get early access updates.",
 
-  teaser:
-    "Something new for Chicago is on the way. Complete the map to get a first look.",
-
   modalTitle: "You mapped Chicago.",
   modalBody:
     "We're building chicago.com as a new way for Chicagoans to see their city, neighborhood by neighborhood. Drop your email below if you'd like early access when it's ready.",
+  alreadyOnListMessage: "You’re already on the list.",
+  alreadyOnListBody:
+    "Thanks for raising your hand. We’ll be in touch as chicago.com takes shape.",
   emailLabel: "Email address",
   submitButton: "Get early access updates",
   submitButtonBusy: "Sending…",
   secondaryButton: "Maybe later",
+  startOverButton: "Start over",
   successMessage:
     "Thanks — you're on the list. We'll be in touch as chicago.com takes shape.",
   privacyNote:

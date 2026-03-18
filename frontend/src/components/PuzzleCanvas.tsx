@@ -608,24 +608,22 @@ export function PuzzleCanvas({
       maxX: Math.max(...current.map((p) => p.maxX)),
       maxY: Math.max(...current.map((p) => p.maxY)),
     }
-    setPieces((prev) => {
-      const next = prev.map((piece) => {
-        const pos = getScatterPosition(
-          piece,
-          cityBounds,
-          dimensions.width,
-          dimensions.height,
-        )
-        return {
-          ...piece,
-          currentCenterX: pos.x,
-          currentCenterY: pos.y,
-          isLocked: false,
-        }
-      })
-      setUnlockedOrder(next.map((p) => p.id))
-      return next
+    const next = current.map((piece) => {
+      const pos = getScatterPosition(
+        piece,
+        cityBounds,
+        dimensions.width,
+        dimensions.height,
+      )
+      return {
+        ...piece,
+        currentCenterX: pos.x,
+        currentCenterY: pos.y,
+        isLocked: false,
+      }
     })
+    setPieces(next)
+    setUnlockedOrder(next.map((p) => p.id))
   }, [forceClearSignal, dimensions.width, dimensions.height])
 
   /* Maps client coordinates to SVG coordinate system (for drag math). */
@@ -662,7 +660,13 @@ export function PuzzleCanvas({
       const id = (e.currentTarget as SVGElement).getAttribute('data-piece-id')
       if (!id) return
       const piece = pieces.find((p) => p.id === id)
-      if (!piece || piece.isLocked) return
+      if (!piece) return
+      if (piece.isLocked) {
+        if (piece.name) {
+          onNeighborhoodTap?.(piece.name)
+        }
+        return
+      }
       e.preventDefault()
       e.currentTarget.setPointerCapture(e.pointerId)
       const pt = getSvgPoint(e.clientX, e.clientY)
