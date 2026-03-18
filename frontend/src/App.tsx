@@ -5,7 +5,9 @@
 import './App.css'
 import { useEffect, useState } from 'react'
 import { PuzzleCanvas } from './components/PuzzleCanvas'
+import { BottomSheet } from './components/BottomSheet'
 import { copy } from './content'
+import { NeighborhoodCard } from './components/NeighborhoodCard'
 import {
   clearPuzzleState,
   getOrCreateVisitorId,
@@ -68,10 +70,31 @@ function App() {
   const [forceCompleteSignal, setForceCompleteSignal] = useState(0)
   const [forceShuffleSignal, setForceShuffleSignal] = useState(0)
   const [forceClearSignal, setForceClearSignal] = useState(0)
+  const [isMobilePortrait, setIsMobilePortrait] = useState(false)
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme
   }, [theme])
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return
+    const query = '(max-width: 767px) and (orientation: portrait)'
+    const mql = window.matchMedia(query)
+
+    const update = () => setIsMobilePortrait(Boolean(mql.matches))
+    update()
+
+    if (typeof mql.addEventListener === 'function') {
+      mql.addEventListener('change', update)
+      return () => mql.removeEventListener('change', update)
+    }
+
+    // Safari < 14
+    // eslint-disable-next-line deprecation/deprecation
+    mql.addListener(update)
+    // eslint-disable-next-line deprecation/deprecation
+    return () => mql.removeListener(update)
+  }, [])
 
   /* Get or create visitor id, load puzzle state, init GA, track puzzle_view; open completion modal if already completed. */
   useEffect(() => {
@@ -386,14 +409,33 @@ function App() {
             className="layout-main-teaser"
             aria-label="About this experience"
           >
-            {lastNeighborhood && (
+            {!isMobilePortrait && lastNeighborhood && (
               <p className="puzzle-shell-caption puzzle-shell-caption--hint">
                 {copy.lastTappedPrefix} <strong>{lastNeighborhood}</strong>.
               </p>
             )}
-            <p className="teaser-text">{copy.teaser}</p>
+
+            {!isMobilePortrait && lastNeighborhood && (
+              <div className="neighborhood-panel">
+                <NeighborhoodCard
+                  neighborhoodName={lastNeighborhood}
+                  variant="panel"
+                />
+              </div>
+            )}
+
+            {!isMobilePortrait && <p className="teaser-text">{copy.teaser}</p>}
           </aside>
         </section>
+
+        {isMobilePortrait && (
+          <BottomSheet title={lastNeighborhood ?? 'Tap a neighborhood.'}>
+            <NeighborhoodCard
+              neighborhoodName={lastNeighborhood}
+              variant="sheet"
+            />
+          </BottomSheet>
+        )}
 
         {isCompletionModalOpen && (
           <div className="completion-modal-backdrop" role="presentation">
