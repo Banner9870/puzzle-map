@@ -36,20 +36,10 @@ app.use((_req, res, next) => {
   next()
 })
 
-/* Only applies to /api/early-access.
- * CORS behaviour:
- * - If ALLOWED_ORIGIN is set, that exact origin is used.
- * - Otherwise, in production we default to the known frontend origin for this deployment.
- * - In non-production we fall back to * for local/dev convenience.
- */
+/* Only applies to /api/early-access; ALLOWED_ORIGIN or *. In production set ALLOWED_ORIGIN to frontend origin. */
 app.use((req, res, next) => {
   if (req.path === '/api/early-access' || req.path === '/api/early-access/') {
-    const envAllowedOrigin = process.env.ALLOWED_ORIGIN
-    const isProd = process.env.NODE_ENV === 'production'
-    const defaultProdOrigin = 'https://puzzle-map-production.up.railway.app'
-    const allowedOrigin =
-      envAllowedOrigin || (isProd ? defaultProdOrigin : '*')
-
+    const allowedOrigin = process.env.ALLOWED_ORIGIN || '*'
     res.setHeader('Access-Control-Allow-Origin', allowedOrigin)
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
     res.setHeader('Access-Control-Allow-Methods', 'POST,OPTIONS')
@@ -60,11 +50,7 @@ app.use((req, res, next) => {
   next()
 })
 
-/* In-memory per key; RATE_LIMIT_MAX_REQUESTS per RATE_LIMIT_WINDOW_MS.
- * Resets on restart; for multi-instance consider shared store (e.g. Redis).
- * To keep behaviour predictable across different proxy / x-forwarded-for setups,
- * we key primarily on uuid when present, falling back to ip otherwise.
- */
+/* In-memory per key; RATE_LIMIT_MAX_REQUESTS per RATE_LIMIT_WINDOW_MS. Resets on restart; for multi-instance consider shared store (e.g. Redis). */
 const RATE_LIMIT_WINDOW_MS = 60_000
 const RATE_LIMIT_MAX_REQUESTS = 20
 const rateLimitStore = new Map()
@@ -100,7 +86,7 @@ app.post('/api/early-access', async (req, res) => {
     req.ip ||
     'unknown'
   const uuidForRate = typeof req.body?.uuid === 'string' ? req.body.uuid : ''
-  const rateKey = uuidForRate ? `uuid:${uuidForRate}` : `ip:${ip}`
+  const rateKey = uuidForRate ? `${ip}:${uuidForRate}` : ip
 
   if (!checkRateLimit(rateKey)) {
     return res.status(429).json({ error: 'Too many requests. Please slow down.' })

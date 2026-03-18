@@ -51,8 +51,6 @@ type PuzzleCanvasProps = {
   visitorId?: string | null
   onPuzzleStarted?: () => void
   onMove?: () => void
-  /** Notify parent when a drag becomes active/inactive (used to pause bottom-sheet reflow). */
-  onDragActiveChange?: (active: boolean) => void
   forceCompleteSignal?: number
   /** Increment to re-scatter all unlocked pieces (e.g. after resize or to shuffle). */
   forceShuffleSignal?: number
@@ -239,53 +237,15 @@ export function PuzzleCanvas({
   const [draggingPieceId, setDraggingPieceId] = useState<string | null>(null)
   const [isDragMoving, setIsDragMoving] = useState(false)
   const [snappedPieceId, setSnappedPieceId] = useState<string | null>(null)
+  const [dragOffset, setDragOffset] = useState<{ x: number; y: number } | null>(
+    null,
+  )
   /** Back-to-front order of unlocked piece ids; used for draw order and tap-to-cycle. */
   const [unlockedOrder, setUnlockedOrder] = useState<string[]>([])
   const dragStartedRef = useRef(false)
   const hasReportedPuzzleStartedRef = useRef(false)
   const piecesRef = useRef<PieceState[]>([])
   piecesRef.current = pieces
-
-  /**
-   * Drag perf: keep per-frame pointer movement out of React state.
-   * We update the active piece's CSS translate vars in rAF, and only commit the final position to React on pointer up.
-   */
-  const draggingPieceIdRef = useRef<string | null>(null)
-  const draggingPointerIdRef = useRef<number | null>(null)
-  const dragOffsetRef = useRef<{ x: number; y: number } | null>(null)
-  const dragCenterRef = useRef<{ x: number; y: number } | null>(null)
-  const rafPendingRef = useRef(false)
-  const pieceElByIdRef = useRef(new Map<string, SVGGElement>())
-
-  const setPieceEl = useCallback((id: string, el: SVGGElement | null) => {
-    const map = pieceElByIdRef.current
-    if (!el) {
-      map.delete(id)
-      return
-    }
-    map.set(id, el)
-  }, [])
-
-  const applyDragCssVars = useCallback(() => {
-    rafPendingRef.current = false
-    const id = draggingPieceIdRef.current
-    const center = dragCenterRef.current
-    if (!id || !center) return
-    const piece = piecesRef.current.find((p) => p.id === id)
-    if (!piece) return
-    const dx = center.x - piece.targetCenterX
-    const dy = center.y - piece.targetCenterY
-    const el = pieceElByIdRef.current.get(id)
-    if (!el) return
-    el.style.setProperty('--piece-dx', `${dx}px`)
-    el.style.setProperty('--piece-dy', `${dy}px`)
-  }, [])
-
-  const requestApplyDragCssVars = useCallback(() => {
-    if (rafPendingRef.current) return
-    rafPendingRef.current = true
-    requestAnimationFrame(applyDragCssVars)
-  }, [applyDragCssVars])
 
   /* Supports both new format (lockedPieceIds) and legacy (placedPieces with isLocked). */
   const applyStoredState = useCallback(
@@ -587,11 +547,7 @@ export function PuzzleCanvas({
     savePuzzleState(visitorId, { completed, lockedPieceIds })
   }, [pieces, visitorId])
 
-  /* Admin override: lock all pieces.
-   * App is responsible for emitting completion analytics and opening the modal
-   * when it bumps forceCompleteSignal; we do not call onCompleted here to avoid
-   * double-firing completion side effects for override flows.
-   */
+  /* Admin override: lock all pieces and call onCompleted. */
   useEffect(() => {
     if (!forceCompleteSignal || pieces.length === 0) return
     setPieces((prev) =>
@@ -602,7 +558,10 @@ export function PuzzleCanvas({
         isLocked: true,
       })),
     )
-  }, [forceCompleteSignal, pieces.length])
+    queueMicrotask(() => {
+      onCompleted?.()
+    })
+  }, [forceCompleteSignal, pieces.length, onCompleted])
 
   const shuffleSignalRef = useRef(0)
   const clearSignalRef = useRef(0)
@@ -649,22 +608,24 @@ export function PuzzleCanvas({
       maxX: Math.max(...current.map((p) => p.maxX)),
       maxY: Math.max(...current.map((p) => p.maxY)),
     }
-    const next = current.map((piece) => {
-      const pos = getScatterPosition(
-        piece,
-        cityBounds,
-        dimensions.width,
-        dimensions.height,
-      )
-      return {
-        ...piece,
-        currentCenterX: pos.x,
-        currentCenterY: pos.y,
-        isLocked: false,
-      }
+    setPieces((prev) => {
+      const next = prev.map((piece) => {
+        const pos = getScatterPosition(
+          piece,
+          cityBounds,
+          dimensions.width,
+          dimensions.height,
+        )
+        return {
+          ...piece,
+          currentCenterX: pos.x,
+          currentCenterY: pos.y,
+          isLocked: false,
+        }
+      })
+      setUnlockedOrder(next.map((p) => p.id))
+      return next
     })
-    setPieces(next)
-    setUnlockedOrder(next.map((p) => p.id))
   }, [forceClearSignal, dimensions.width, dimensions.height])
 
   /* Maps client coordinates to SVG coordinate system (for drag math). */
@@ -703,16 +664,13 @@ export function PuzzleCanvas({
       const piece = pieces.find((p) => p.id === id)
       if (!piece || piece.isLocked) return
       e.preventDefault()
-      svgRef.current?.setPointerCapture(e.pointerId)
+      e.currentTarget.setPointerCapture(e.pointerId)
       const pt = getSvgPoint(e.clientX, e.clientY)
-      dragOffsetRef.current = {
+      setDragOffset({
         x: piece.currentCenterX - pt.x,
         y: piece.currentCenterY - pt.y,
-      }
-      dragCenterRef.current = { x: piece.currentCenterX, y: piece.currentCenterY }
-      draggingPointerIdRef.current = e.pointerId
-      draggingPieceIdRef.current = id
-      setDraggingPieceId(id) // for sort/z + CSS class
+      })
+      setDraggingPieceId(id)
       setIsDragMoving(false)
       dragStartedRef.current = false
       if (piece.name) {
@@ -724,17 +682,9 @@ export function PuzzleCanvas({
 
   const handlePointerMove = useCallback(
     (e: React.PointerEvent) => {
-      const id = draggingPieceIdRef.current
-      const dragOffset = dragOffsetRef.current
-      if (!id || !dragOffset) return
-      if (
-        draggingPointerIdRef.current != null &&
-        e.pointerId !== draggingPointerIdRef.current
-      ) {
-        return
-      }
+      if (!draggingPieceId || !dragOffset) return
       dragStartedRef.current = true
-      if (!isDragMoving) setIsDragMoving(true)
+      setIsDragMoving(true)
       if (!hasReportedPuzzleStartedRef.current) {
         hasReportedPuzzleStartedRef.current = true
         onPuzzleStarted?.()
@@ -742,34 +692,31 @@ export function PuzzleCanvas({
       const pt = getSvgPoint(e.clientX, e.clientY)
       const newCenterX = pt.x + dragOffset.x
       const newCenterY = pt.y + dragOffset.y
-      const piece = piecesRef.current.find((p) => p.id === id)
+      const piece = pieces.find((p) => p.id === draggingPieceId)
       if (!piece) return
       const clamped = clampPosition(piece, newCenterX, newCenterY)
-      dragCenterRef.current = { x: clamped.x, y: clamped.y }
-      requestApplyDragCssVars()
+      setPieces((prev) =>
+        prev.map((p) =>
+          p.id === draggingPieceId
+            ? {
+                ...p,
+                currentCenterX: clamped.x,
+                currentCenterY: clamped.y,
+              }
+            : p,
+        ),
+      )
     },
-    [
-      clampPosition,
-      getSvgPoint,
-      isDragMoving,
-      onPuzzleStarted,
-      requestApplyDragCssVars,
-    ],
+    [draggingPieceId, dragOffset, pieces, getSvgPoint, clampPosition, onPuzzleStarted],
   )
 
   const handlePointerUp = useCallback(
     (e: React.PointerEvent) => {
       if (e.pointerType !== 'touch' && e.button !== 0) return
-      const id = draggingPieceIdRef.current
+      const id = (e.currentTarget as SVGElement).getAttribute('data-piece-id')
       if (!id) return
-      const piece = piecesRef.current.find((p) => p.id === id)
+      const piece = pieces.find((p) => p.id === id)
       if (!piece) return
-      if (
-        draggingPointerIdRef.current != null &&
-        e.pointerId !== draggingPointerIdRef.current
-      ) {
-        return
-      }
 
       const wasDrag = dragStartedRef.current
       dragStartedRef.current = false
@@ -785,24 +732,15 @@ export function PuzzleCanvas({
         })
       }
 
+      if (draggingPieceId !== id) return
       setDraggingPieceId(null)
       setIsDragMoving(false)
-      draggingPieceIdRef.current = null
-      draggingPointerIdRef.current = null
-      dragOffsetRef.current = null
+      setDragOffset(null)
 
       setPieces((prev) => {
         let snapped = false
         const p = prev.find((x) => x.id === id)
         if (!p) return prev
-
-        const liveCenter = dragCenterRef.current
-        if (liveCenter) {
-          // Commit final drag position to state once (no per-move re-renders).
-          p.currentCenterX = liveCenter.x
-          p.currentCenterY = liveCenter.y
-        }
-
         const dx = p.currentCenterX - p.targetCenterX
         const dy = p.currentCenterY - p.targetCenterY
         const distance = Math.sqrt(dx * dx + dy * dy)
@@ -838,7 +776,7 @@ export function PuzzleCanvas({
         onMove?.()
       }
     },
-    [onNeighborhoodTap, onCompleted, onMove],
+    [pieces, draggingPieceId, onNeighborhoodTap, onCompleted, onMove],
   )
 
   const isNarrow = dimensions.width < 600
@@ -937,28 +875,35 @@ export function PuzzleCanvas({
             const dx = piece.currentCenterX - piece.targetCenterX
             const dy = piece.currentCenterY - piece.targetCenterY
             const isDragging = draggingPieceId === piece.id
+            const tx = piece.targetCenterX
+            const ty = piece.targetCenterY
             const isSnapped = snappedPieceId === piece.id
-            const transformVars = {
-              // Used by CSS transform; during active drag these values are updated via rAF (no React re-render).
-              ['--piece-dx' as any]: `${dx}px`,
-              ['--piece-dy' as any]: `${dy}px`,
-            } as React.CSSProperties
+            const liftScale =
+              isDragging ? (isDragMoving ? 1.06 : 1.04) : isSnapped ? 1.08 : 1
+            const transform = isDragging
+              ? `translate(${dx + tx}, ${dy + ty}) scale(${liftScale}) translate(${-tx}, ${-ty})`
+              : isSnapped
+                ? `translate(${dx + tx}, ${dy + ty}) scale(${liftScale}) translate(${-tx}, ${-ty})`
+                : `translate(${dx}, ${dy})`
+            const snapTransition = 'transform 200ms ease-out'
+            const defaultTransition =
+              isDragging && !isDragMoving
+                ? 'transform 0ms'
+                : 'transform 80ms ease-out, filter 80ms ease-out'
             return (
               <g
                 key={piece.id}
                 data-piece-id={piece.id}
-                ref={(el) => setPieceEl(piece.id, el)}
-                className={[
-                  'puzzle-piece',
-                  piece.isLocked ? 'puzzle-piece--locked' : 'puzzle-piece--free',
-                  isDragging ? 'puzzle-piece--dragging' : '',
-                  isDragMoving && isDragging ? 'puzzle-piece--moving' : '',
-                  isSnapped ? 'puzzle-piece--snapped' : '',
-                ]
-                  .filter(Boolean)
-                  .join(' ')}
-                style={transformVars}
+                transform={transform}
+                style={{
+                  cursor: piece.isLocked ? 'default' : 'grab',
+                  pointerEvents: piece.isLocked ? 'none' : 'auto',
+                  filter: piece.isLocked ? undefined : 'url(#piece-drop-shadow)',
+                  transition: isSnapped ? snapTransition : defaultTransition,
+                }}
                 onPointerDown={handlePointerDown}
+                onPointerMove={handlePointerMove}
+                onPointerUp={handlePointerUp}
               >
                 {/* Barely-visible wide stroke to enlarge touch target on mobile */}
                 <path
@@ -970,9 +915,17 @@ export function PuzzleCanvas({
                   aria-hidden="true"
                 />
                 <path
-                  className="puzzle-piece-path"
                   d={piece.pathString}
+                  fill="var(--brand-red, #ed0000)"
+                  fillOpacity={isSnapped ? 0.55 : 0.3}
+                  stroke="var(--map-outline, #9ca3af)"
                   strokeWidth={isSnapped ? pieceStrokeWidth + 0.5 : pieceStrokeWidth}
+                  style={{
+                    cursor: piece.isLocked ? 'default' : 'grab',
+                    transition: isSnapped
+                      ? 'fill-opacity 200ms ease-out, stroke-width 200ms ease-out'
+                      : undefined,
+                  }}
                   aria-label={piece.name}
                 />
               </g>
