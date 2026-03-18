@@ -20,15 +20,6 @@ function isDebugEnabled(): boolean {
   }
 }
 
-function isIosSafari(): boolean {
-  if (typeof navigator === 'undefined') return false
-  const ua = navigator.userAgent || navigator.vendor || ''
-  const isIos = /iPhone|iPad|iPod/i.test(ua)
-  const isSafari =
-    /Safari/i.test(ua) && !/Chrome|CriOS|FxiOS|EdgiOS|OPiOS|OPR/i.test(ua)
-  return isIos && isSafari
-}
-
 /* GeoJSON and runtime piece state types; props include callbacks and optional force signals from App. */
 type NeighborhoodFeature = {
   type: 'Feature'
@@ -855,9 +846,6 @@ export function PuzzleCanvas({
       setDraggingPieceId(id) // for sort/z + CSS class
       setIsDragMoving(false)
       dragStartedRef.current = false
-      if (piece.name) {
-        onNeighborhoodTap?.(piece.name)
-      }
     },
     [pieces, getSvgPoint, onNeighborhoodTap],
   )
