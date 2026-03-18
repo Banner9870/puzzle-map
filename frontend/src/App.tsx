@@ -429,7 +429,10 @@ function App() {
           >
             {!isMobilePortrait && (
               <div className="neighborhood-panel">
-                <NeighborhoodCard neighborhoodName={lastNeighborhood} variant="panel" />
+                <NeighborhoodCardComponent
+                  neighborhoodName={lastNeighborhood}
+                  variant="panel"
+                />
               </div>
             )}
           </aside>
