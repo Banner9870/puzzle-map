@@ -11,15 +11,6 @@ import {
   type PuzzleState,
 } from '../persistence'
 
-function isDebugEnabled(): boolean {
-  if (typeof window === 'undefined') return false
-  try {
-    return new URLSearchParams(window.location.search).has('debug')
-  } catch {
-    return false
-  }
-}
-
 /* GeoJSON and runtime piece state types; props include callbacks and optional force signals from App. */
 type NeighborhoodFeature = {
   type: 'Feature'
@@ -233,12 +224,10 @@ export function PuzzleCanvas({
   visitorId,
   onPuzzleStarted,
   onMove,
-  onDragActiveChange,
   forceCompleteSignal,
   forceShuffleSignal = 0,
   forceClearSignal = 0,
 }: PuzzleCanvasProps) {
-  const debugEnabledRef = useRef(isDebugEnabled())
   /* State: dimensions (from ResizeObserver), pieces (from GeoJSON + persistence), drag state, unlockedOrder (for draw order and tap-to-cycle). */
   const containerRef = useRef<HTMLDivElement | null>(null)
   const svgRef = useRef<SVGSVGElement | null>(null)
@@ -253,7 +242,6 @@ export function PuzzleCanvas({
   /** Back-to-front order of unlocked piece ids; used for draw order and tap-to-cycle. */
   const [unlockedOrder, setUnlockedOrder] = useState<string[]>([])
   const dragStartedRef = useRef(false)
-  const isDragActiveRef = useRef(false)
   const hasReportedPuzzleStartedRef = useRef(false)
   const piecesRef = useRef<PieceState[]>([])
   piecesRef.current = pieces
@@ -268,9 +256,6 @@ export function PuzzleCanvas({
   const dragCenterRef = useRef<{ x: number; y: number } | null>(null)
   const rafPendingRef = useRef(false)
   const pieceElByIdRef = useRef(new Map<string, SVGGElement>())
-  const [debugHudText, setDebugHudText] = useState<string>('')
-  const lastDebugEventRef = useRef<string>('')
-  const debugHudRafRef = useRef<number | null>(null)
 
   const setPieceEl = useCallback((id: string, el: SVGGElement | null) => {
     const map = pieceElByIdRef.current
@@ -294,42 +279,6 @@ export function PuzzleCanvas({
     if (!el) return
     el.style.setProperty('--piece-dx', `${dx}px`)
     el.style.setProperty('--piece-dy', `${dy}px`)
-  }, [])
-
-  const scheduleDebugHudUpdate = useCallback(() => {
-    if (!debugEnabledRef.current) return
-    if (debugHudRafRef.current != null) return
-    debugHudRafRef.current = requestAnimationFrame(() => {
-      debugHudRafRef.current = null
-      const vv = window.visualViewport
-      const de = document.documentElement
-      const svg = svgRef.current
-      const pid = draggingPointerIdRef.current
-      const hasCap =
-        svg && pid != null ? svg.hasPointerCapture?.(pid) : undefined
-      setDebugHudText(
-        [
-          `evt=${lastDebugEventRef.current || '-'}`,
-          `dragging=${draggingPieceIdRef.current ?? '-'}`,
-          `hasCapture=${hasCap == null ? '-' : String(hasCap)}`,
-          `inner=${window.innerWidth}x${window.innerHeight}`,
-          `vv=${
-            vv
-              ? `${Math.round(vv.width)}x${Math.round(vv.height)} top=${Math.round(vv.offsetTop)} scale=${vv.scale}`
-              : 'n/a'
-          }`,
-          `doc=${de.clientHeight}/${de.scrollHeight}`,
-        ].join('\n'),
-      )
-    })
-  }, [])
-
-  useEffect(() => {
-    return () => {
-      if (debugHudRafRef.current != null) {
-        cancelAnimationFrame(debugHudRafRef.current)
-      }
-    }
   }, [])
 
   const requestApplyDragCssVars = useCallback(() => {
@@ -630,55 +579,6 @@ export function PuzzleCanvas({
     }
   }, [dimensions, applyStoredState, visitorId])
 
-  useEffect(() => {
-    if (!debugEnabledRef.current) return
-    const svg = svgRef.current
-    if (!svg) return
-
-    const note = (label: string, e: PointerEvent) => {
-      lastDebugEventRef.current = label
-      console.info('[PuzzleCanvas debug]', label, {
-        pointerId: e.pointerId,
-        pointerType: e.pointerType,
-        cancelable: (e as any).cancelable,
-        defaultPrevented: e.defaultPrevented,
-        targetTag: (e.target as Element | null)?.tagName,
-      })
-      scheduleDebugHudUpdate()
-    }
-
-    const onGot = (e: PointerEvent) => note('gotpointercapture', e)
-    const onLost = (e: PointerEvent) => note('lostpointercapture', e)
-    const onCancel = (e: PointerEvent) => note('pointercancel', e)
-
-    svg.addEventListener('gotpointercapture', onGot)
-    svg.addEventListener('lostpointercapture', onLost)
-    svg.addEventListener('pointercancel', onCancel)
-
-    const vv = window.visualViewport
-    const onVvChange = () => {
-      console.info('[PuzzleCanvas debug] visualViewport change', {
-        width: vv?.width,
-        height: vv?.height,
-        offsetTop: vv?.offsetTop,
-        scale: vv?.scale,
-        pageTop: (vv as any)?.pageTop,
-      })
-      scheduleDebugHudUpdate()
-    }
-    vv?.addEventListener('resize', onVvChange)
-    vv?.addEventListener('scroll', onVvChange)
-
-    scheduleDebugHudUpdate()
-    return () => {
-      svg.removeEventListener('gotpointercapture', onGot)
-      svg.removeEventListener('lostpointercapture', onLost)
-      svg.removeEventListener('pointercancel', onCancel)
-      vv?.removeEventListener('resize', onVvChange)
-      vv?.removeEventListener('scroll', onVvChange)
-    }
-  }, [scheduleDebugHudUpdate])
-
   /* Persists completed flag and lockedPieceIds whenever pieces change. */
   useEffect(() => {
     if (!visitorId || pieces.length === 0) return
@@ -774,9 +674,7 @@ export function PuzzleCanvas({
     const pt = svg.createSVGPoint()
     pt.x = clientX
     pt.y = clientY
-    const inverse = svg.getScreenCTM()?.inverse()
-    if (!inverse) return { x: 0, y: 0 }
-    const transformed = pt.matrixTransform(inverse)
+    const transformed = pt.matrixTransform(svg.getScreenCTM()?.inverse())
     return { x: transformed.x, y: transformed.y }
   }, [])
 
@@ -803,30 +701,8 @@ export function PuzzleCanvas({
       const id = (e.currentTarget as SVGElement).getAttribute('data-piece-id')
       if (!id) return
       const piece = pieces.find((p) => p.id === id)
-      if (!piece) return
-      if (piece.isLocked) {
-        if (piece.name) {
-          onNeighborhoodTap?.(piece.name)
-        }
-        return
-      }
+      if (!piece || piece.isLocked) return
       e.preventDefault()
-      if (!isDragActiveRef.current) {
-        isDragActiveRef.current = true
-        onDragActiveChange?.(true)
-      }
-      if (debugEnabledRef.current) {
-        lastDebugEventRef.current = 'pointerdown'
-        console.info('[PuzzleCanvas debug] pointerdown', {
-          pointerId: e.pointerId,
-          pointerType: e.pointerType,
-          cancelable: (e as any).cancelable,
-          defaultPrevented: e.defaultPrevented,
-          pieceId: id,
-          isLocked: piece.isLocked,
-        })
-        scheduleDebugHudUpdate()
-      }
       svgRef.current?.setPointerCapture(e.pointerId)
       const pt = getSvgPoint(e.clientX, e.clientY)
       dragOffsetRef.current = {
@@ -839,6 +715,9 @@ export function PuzzleCanvas({
       setDraggingPieceId(id) // for sort/z + CSS class
       setIsDragMoving(false)
       dragStartedRef.current = false
+      if (piece.name) {
+        onNeighborhoodTap?.(piece.name)
+      }
     },
     [pieces, getSvgPoint, onNeighborhoodTap],
   )
@@ -855,10 +734,6 @@ export function PuzzleCanvas({
         return
       }
       dragStartedRef.current = true
-      if (!isDragActiveRef.current) {
-        isDragActiveRef.current = true
-        onDragActiveChange?.(true)
-      }
       if (!isDragMoving) setIsDragMoving(true)
       if (!hasReportedPuzzleStartedRef.current) {
         hasReportedPuzzleStartedRef.current = true
@@ -872,10 +747,6 @@ export function PuzzleCanvas({
       const clamped = clampPosition(piece, newCenterX, newCenterY)
       dragCenterRef.current = { x: clamped.x, y: clamped.y }
       requestApplyDragCssVars()
-      if (debugEnabledRef.current) {
-        lastDebugEventRef.current = 'pointermove'
-        scheduleDebugHudUpdate()
-      }
     },
     [
       clampPosition,
@@ -883,7 +754,6 @@ export function PuzzleCanvas({
       isDragMoving,
       onPuzzleStarted,
       requestApplyDragCssVars,
-      scheduleDebugHudUpdate,
     ],
   )
 
@@ -903,14 +773,6 @@ export function PuzzleCanvas({
 
       const wasDrag = dragStartedRef.current
       dragStartedRef.current = false
-      if (isDragActiveRef.current) {
-        isDragActiveRef.current = false
-        onDragActiveChange?.(false)
-      }
-      if (isDragActiveRef.current) {
-        isDragActiveRef.current = false
-        onDragActiveChange?.(false)
-      }
 
       if (piece.name) {
         onNeighborhoodTap?.(piece.name)
@@ -928,10 +790,6 @@ export function PuzzleCanvas({
       draggingPieceIdRef.current = null
       draggingPointerIdRef.current = null
       dragOffsetRef.current = null
-      if (debugEnabledRef.current) {
-        lastDebugEventRef.current = 'pointerup'
-        scheduleDebugHudUpdate()
-      }
 
       setPieces((prev) => {
         let snapped = false
@@ -1018,28 +876,6 @@ export function PuzzleCanvas({
       className="puzzle-canvas-wrapper"
       aria-busy={!isReady}
     >
-      {debugEnabledRef.current && (
-        <div
-          aria-hidden="true"
-          style={{
-            position: 'absolute',
-            top: 8,
-            left: 8,
-            zIndex: 20,
-            pointerEvents: 'none',
-            fontSize: 11,
-            lineHeight: 1.25,
-            whiteSpace: 'pre',
-            padding: '6px 8px',
-            borderRadius: 8,
-            color: '#fff',
-            background: 'rgba(0,0,0,0.65)',
-            maxWidth: '90%',
-          }}
-        >
-          {debugHudText || 'debug…'}
-        </div>
-      )}
       {!isReady && !loadError && (
         <div className="puzzle-loading-overlay" aria-hidden="true">
           <span className="puzzle-loading-text">
