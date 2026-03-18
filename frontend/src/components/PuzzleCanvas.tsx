@@ -256,12 +256,7 @@ export function PuzzleCanvas({
   const isDragActiveRef = useRef(false)
   const hasReportedPuzzleStartedRef = useRef(false)
   const piecesRef = useRef<PieceState[]>([])
-  const pieceByIdRef = useRef(new Map<string, PieceState>())
   piecesRef.current = pieces
-  pieceByIdRef.current.clear()
-  for (const piece of pieces) {
-    pieceByIdRef.current.set(piece.id, piece)
-  }
 
   /**
    * Drag perf: keep per-frame pointer movement out of React state.
@@ -273,7 +268,6 @@ export function PuzzleCanvas({
   const dragCenterRef = useRef<{ x: number; y: number } | null>(null)
   const rafPendingRef = useRef(false)
   const pieceElByIdRef = useRef(new Map<string, SVGGElement>())
-  const svgInverseCtmRef = useRef<DOMMatrix | null>(null)
   const [debugHudText, setDebugHudText] = useState<string>('')
   const lastDebugEventRef = useRef<string>('')
   const debugHudRafRef = useRef<number | null>(null)
@@ -292,7 +286,7 @@ export function PuzzleCanvas({
     const id = draggingPieceIdRef.current
     const center = dragCenterRef.current
     if (!id || !center) return
-    const piece = pieceByIdRef.current.get(id)
+    const piece = piecesRef.current.find((p) => p.id === id)
     if (!piece) return
     const dx = center.x - piece.targetCenterX
     const dy = center.y - piece.targetCenterY
@@ -780,7 +774,7 @@ export function PuzzleCanvas({
     const pt = svg.createSVGPoint()
     pt.x = clientX
     pt.y = clientY
-    const inverse = svgInverseCtmRef.current ?? svg.getScreenCTM()?.inverse()
+    const inverse = svg.getScreenCTM()?.inverse()
     if (!inverse) return { x: 0, y: 0 }
     const transformed = pt.matrixTransform(inverse)
     return { x: transformed.x, y: transformed.y }
@@ -834,7 +828,6 @@ export function PuzzleCanvas({
         scheduleDebugHudUpdate()
       }
       svgRef.current?.setPointerCapture(e.pointerId)
-      svgInverseCtmRef.current = svgRef.current?.getScreenCTM()?.inverse() ?? null
       const pt = getSvgPoint(e.clientX, e.clientY)
       dragOffsetRef.current = {
         x: piece.currentCenterX - pt.x,
@@ -874,7 +867,7 @@ export function PuzzleCanvas({
       const pt = getSvgPoint(e.clientX, e.clientY)
       const newCenterX = pt.x + dragOffset.x
       const newCenterY = pt.y + dragOffset.y
-      const piece = pieceByIdRef.current.get(id)
+      const piece = piecesRef.current.find((p) => p.id === id)
       if (!piece) return
       const clamped = clampPosition(piece, newCenterX, newCenterY)
       dragCenterRef.current = { x: clamped.x, y: clamped.y }
@@ -935,7 +928,6 @@ export function PuzzleCanvas({
       draggingPieceIdRef.current = null
       draggingPointerIdRef.current = null
       dragOffsetRef.current = null
-      svgInverseCtmRef.current = null
       if (debugEnabledRef.current) {
         lastDebugEventRef.current = 'pointerup'
         scheduleDebugHudUpdate()
