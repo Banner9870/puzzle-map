@@ -5,11 +5,12 @@
 import './App.css'
 import { useEffect, useState } from 'react'
 import { PuzzleCanvas } from './components/PuzzleCanvas'
-import { BottomSheet } from './components/BottomSheet'
+import { NeighborhoodCard } from './components/NeighborhoodCard'
 import { copy } from './content'
 import { NeighborhoodCard } from './components/NeighborhoodCard'
 import {
   clearPuzzleState,
+  getEmailSubmitted,
   getOrCreateVisitorId,
   loadPuzzleState,
   setEmailSubmitted,
@@ -58,6 +59,7 @@ function App() {
   const [puzzleStartedAt, setPuzzleStartedAt] = useState<number | null>(null)
   const [theme, setTheme] = useState<Theme>(getInitialTheme)
   const [isCompletionModalOpen, setIsCompletionModalOpen] = useState(false)
+  const [hasSubmittedEmail, setHasSubmittedEmail] = useState(false)
   const [emailValue, setEmailValue] = useState('')
   const [emailStatus, setEmailStatus] = useState<
     'idle' | 'submitting' | 'success' | 'error'
@@ -67,6 +69,7 @@ function App() {
   const [titleClickWindowStart, setTitleClickWindowStart] = useState<
     number | null
   >(null)
+  const [completionEventId, setCompletionEventId] = useState(0)
   const [forceCompleteSignal, setForceCompleteSignal] = useState(0)
   const [forceShuffleSignal, setForceShuffleSignal] = useState(0)
   const [forceClearSignal, setForceClearSignal] = useState(0)
@@ -112,9 +115,8 @@ function App() {
     const stored = loadPuzzleState(id)
     const completedFromStorage = stored?.completed ?? false
     setIsCompleted(completedFromStorage)
-    if (completedFromStorage) {
-      setIsCompletionModalOpen(true)
-    }
+    setHasSubmittedEmail(getEmailSubmitted(id))
+    if (completedFromStorage) setCompletionEventId((n) => n + 1)
 
     const deviceType = detectDeviceType()
     const orientation = detectOrientation()
@@ -132,6 +134,23 @@ function App() {
     })
   }, [])
 
+  /* Treat completion as an event: any new completion/override should open the modal again. */
+  useEffect(() => {
+    if (completionEventId <= 0) return
+    if (visitorId) {
+      const alreadySubmitted = getEmailSubmitted(visitorId)
+      setHasSubmittedEmail(alreadySubmitted)
+      setEmailStatus(alreadySubmitted ? 'success' : 'idle')
+      setEmailError(null)
+      if (!alreadySubmitted) setEmailValue('')
+    } else {
+      setHasSubmittedEmail(false)
+      setEmailStatus('idle')
+      setEmailError(null)
+    }
+    setIsCompletionModalOpen(true)
+  }, [completionEventId, visitorId])
+
   const handleToggleTheme = () => {
     setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'))
   }
@@ -147,6 +166,8 @@ function App() {
     }
     setIsCompleted(false)
     setIsCompletionModalOpen(false)
+    setEmailStatus('idle')
+    setEmailError(null)
     setForceClearSignal((n) => n + 1)
   }
 
@@ -237,6 +258,7 @@ function App() {
       setEmailStatus('success')
       if (visitorId) {
         setEmailSubmitted(visitorId)
+        setHasSubmittedEmail(true)
       }
       trackEmailSubmitSuccess({
         deviceType,
@@ -273,7 +295,7 @@ function App() {
       trackOverrideJumpToComplete({ deviceType, orientation })
       setForceCompleteSignal((value) => value + 1)
       setIsCompleted(true)
-      setIsCompletionModalOpen(true)
+      setCompletionEventId((n) => n + 1)
     }
   }
 
@@ -352,7 +374,7 @@ function App() {
                   onNeighborhoodTap={(name) => setLastNeighborhood(name)}
                   onCompleted={() => {
                     setIsCompleted(true)
-                    setIsCompletionModalOpen(true)
+                    setCompletionEventId((n) => n + 1)
                     const deviceType = detectDeviceType()
                     const orientation = detectOrientation()
                     const now =
@@ -394,13 +416,9 @@ function App() {
                   }}
                 />
               </div>
-              <p className="puzzle-shell-caption">
-                {copy.puzzleInstruction}
-              </p>
+              <p className="puzzle-shell-caption">{copy.puzzleInstruction}</p>
               {isCompleted && (
-                <p className="puzzle-shell-caption">
-                  {copy.completionCaption}
-                </p>
+                <p className="puzzle-shell-caption">{copy.completionCaption}</p>
               )}
             </section>
           </section>
@@ -409,32 +427,21 @@ function App() {
             className="layout-main-teaser"
             aria-label="About this experience"
           >
-            {!isMobilePortrait && lastNeighborhood && (
-              <p className="puzzle-shell-caption puzzle-shell-caption--hint">
-                {copy.lastTappedPrefix} <strong>{lastNeighborhood}</strong>.
-              </p>
-            )}
-
-            {!isMobilePortrait && lastNeighborhood && (
+            {!isMobilePortrait && (
               <div className="neighborhood-panel">
-                <NeighborhoodCard
-                  neighborhoodName={lastNeighborhood}
-                  variant="panel"
-                />
+                <NeighborhoodCard neighborhoodName={lastNeighborhood} variant="panel" />
               </div>
             )}
-
-            {!isMobilePortrait && <p className="teaser-text">{copy.teaser}</p>}
           </aside>
         </section>
 
         {isMobilePortrait && (
-          <BottomSheet title={lastNeighborhood ?? 'Tap a neighborhood.'}>
-            <NeighborhoodCard
-              neighborhoodName={lastNeighborhood}
-              variant="sheet"
-            />
-          </BottomSheet>
+          <section
+            className="neighborhood-panel neighborhood-panel--mobile"
+            aria-label="Neighborhood details"
+          >
+            <NeighborhoodCard neighborhoodName={lastNeighborhood} variant="sheet" />
+          </section>
         )}
 
         {isCompletionModalOpen && (
@@ -448,53 +455,97 @@ function App() {
               <h2 id="completion-modal-title" className="completion-modal-title">
                 {copy.modalTitle}
               </h2>
-              <p className="completion-modal-body">
-                {copy.modalBody}
-              </p>
-              <form className="completion-modal-form" onSubmit={handleSubmitEmail}>
-                <label className="completion-modal-label">
-                  <span className="completion-modal-label-text">{copy.emailLabel}</span>
-                  <input
-                    type="email"
-                    autoComplete="email"
-                    value={emailValue}
-                    onChange={(event) => setEmailValue(event.target.value)}
-                    className="completion-modal-input"
-                    required
-                  />
-                </label>
-                {emailError && (
-                  <p className="completion-modal-error" role="alert">
-                    {emailError}
+              {hasSubmittedEmail ? (
+                <>
+                  <p className="completion-modal-success" role="status">
+                    {copy.alreadyOnListMessage}
                   </p>
-                )}
-                <div className="completion-modal-actions">
-                  <button
-                    type="submit"
-                    disabled={emailStatus === 'submitting'}
+                  <p className="completion-modal-body">{copy.alreadyOnListBody}</p>
+                  <div className="completion-modal-actions">
+                    <button
+                      type="button"
+                      className="completion-modal-secondary"
+                      onClick={(e) => {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        handleClearPuzzle()
+                      }}
+                    >
+                      {copy.startOverButton}
+                    </button>
+                    <button
+                      type="button"
+                      className="completion-modal-secondary"
+                      onClick={(e) => {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        setIsCompletionModalOpen(false)
+                      }}
+                    >
+                      {copy.secondaryButton}
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <p className="completion-modal-body">{copy.modalBody}</p>
+                  <form
+                    className="completion-modal-form"
+                    onSubmit={handleSubmitEmail}
                   >
-                    {emailStatus === 'submitting'
-                      ? copy.submitButtonBusy
-                      : copy.submitButton}
-                  </button>
-                  <button
-                    type="button"
-                    className="completion-modal-secondary"
-                    onClick={(e) => {
-                      e.preventDefault()
-                      e.stopPropagation()
-                      setIsCompletionModalOpen(false)
-                    }}
-                  >
-                    {copy.secondaryButton}
-                  </button>
-                </div>
-                {emailStatus === 'success' && (
-                  <p className="completion-modal-success">
-                    {copy.successMessage}
-                  </p>
-                )}
-              </form>
+                    <label className="completion-modal-label">
+                      <span className="completion-modal-label-text">
+                        {copy.emailLabel}
+                      </span>
+                      <input
+                        type="email"
+                        autoComplete="email"
+                        value={emailValue}
+                        onChange={(event) => setEmailValue(event.target.value)}
+                        className="completion-modal-input"
+                        required
+                      />
+                    </label>
+                    {emailError && (
+                      <p className="completion-modal-error" role="alert">
+                        {emailError}
+                      </p>
+                    )}
+                    <div className="completion-modal-actions">
+                      <button type="submit" disabled={emailStatus === 'submitting'}>
+                        {emailStatus === 'submitting'
+                          ? copy.submitButtonBusy
+                          : copy.submitButton}
+                      </button>
+                      <button
+                        type="button"
+                        className="completion-modal-secondary"
+                        onClick={(e) => {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          handleClearPuzzle()
+                        }}
+                      >
+                        {copy.startOverButton}
+                      </button>
+                      <button
+                        type="button"
+                        className="completion-modal-secondary"
+                        onClick={(e) => {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          setIsCompletionModalOpen(false)
+                        }}
+                      >
+                        {copy.secondaryButton}
+                      </button>
+                    </div>
+                    {emailStatus === 'success' && (
+                      <p className="completion-modal-success">{copy.successMessage}</p>
+                    )}
+                  </form>
+                </>
+              )}
               <p className="completion-modal-privacy">
                 {copy.privacyNote}
               </p>

@@ -204,6 +204,83 @@ button:focus-visible {
   user-select: none;
 }
 
+.puzzle-piece {
+  --piece-dx: 0px;
+  --piece-dy: 0px;
+  transform-box: fill-box;
+  transform-origin: center;
+  transform: translate(var(--piece-dx), var(--piece-dy));
+  transition: transform 80ms ease-out;
+  will-change: transform;
+}
+
+.puzzle-piece--free {
+  filter: url(#piece-drop-shadow);
+  cursor: grab;
+  pointer-events: auto;
+}
+
+.puzzle-piece--locked {
+  cursor: default;
+  pointer-events: auto;
+  filter: none;
+}
+
+/* Avoid expensive filter recompute while dragging; keep motion instant. */
+.puzzle-piece--dragging {
+  transition: none;
+  filter: none;
+  cursor: grabbing;
+}
+
+/* Subtle lift feedback without recomputing SVG filters every move. */
+.puzzle-piece--moving {
+  transform: translate(var(--piece-dx), var(--piece-dy)) scale(1.04);
+}
+
+/* Snap is a moment: a slightly longer ease feels intentional but doesn’t block. */
+.puzzle-piece--snapped {
+  transition: transform 160ms ease-out;
+}
+
+/* iOS Safari performance: SVG filters/transitions can cause stutter during pointer drags.
+ * Keep gameplay logic unchanged; this is purely rendering-performance tuning. */
+@media (max-width: 767px) and (orientation: portrait) {
+  @supports (-webkit-touch-callout: none) {
+    .puzzle-piece {
+      transition: none !important;
+      will-change: auto;
+      transform-box: unset;
+      transform-origin: center;
+    }
+
+    .puzzle-piece--free {
+      filter: none !important;
+    }
+
+    .puzzle-piece--snapped {
+      transition: none !important;
+    }
+  }
+}
+
+.puzzle-piece-path {
+  fill: var(--puzzle-piece-fill);
+  stroke: var(--puzzle-piece-stroke);
+  fill-opacity: 0.3;
+}
+
+.puzzle-piece--locked .puzzle-piece-path {
+  fill: var(--puzzle-piece-fill-locked);
+  stroke: var(--puzzle-piece-stroke-locked);
+  stroke-width: 2px;
+  fill-opacity: 0.42;
+}
+
+.puzzle-piece--snapped .puzzle-piece-path {
+  fill-opacity: 0.55;
+}
+
 .puzzle-canvas-wrapper--error {
   display: flex;
   align-items: center;
