@@ -291,16 +291,16 @@ export function PuzzleCanvas({
   const applyStoredState = useCallback(
     (basePieces: PieceState[], stored: PuzzleState | null): PieceState[] => {
       if (!stored) return basePieces
-      // New format: only locked piece ids. Legacy: derive from placedPieces.
-      let lockedIds = new Set<string>(
+      // New format: only locked piece ids.
+      // Legacy format: derive from `placedPieces` but only treat a piece as locked
+      // when the stored entry explicitly says `isLocked === true`.
+      // This avoids legacy objects that omit `isLocked` (treated as unlocked).
+      const lockedIds = new Set<string>(
         stored.lockedPieceIds ??
           (stored.placedPieces ?? [])
-            .filter((p) => p.isLocked !== false)
+            .filter((p) => p.isLocked === true)
             .map((p) => p.id),
       )
-      if (stored.completed) {
-        lockedIds = new Set(basePieces.map((p) => p.id))
-      }
       return basePieces.map((piece) => {
         if (!lockedIds.has(piece.id)) return piece
         return {
