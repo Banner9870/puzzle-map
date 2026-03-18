@@ -7,6 +7,7 @@ import { useEffect, useState } from 'react'
 import { PuzzleCanvas } from './components/PuzzleCanvas'
 import { NeighborhoodCard } from './components/NeighborhoodCard'
 import { copy } from './content'
+import { NeighborhoodCard } from './components/NeighborhoodCard'
 import {
   clearPuzzleState,
   getEmailSubmitted,
