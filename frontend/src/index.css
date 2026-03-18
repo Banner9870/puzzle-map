@@ -308,6 +308,10 @@ button:focus-visible {
 
 @media (max-width: 767px) {
   .page-footer {
+    /* Avoid iOS Safari + 100vw layout mismatch by using container-relative full-bleed instead. */
+    width: calc(100% + (2 * var(--space-page-horizontal)));
+    margin-left: calc(-1 * var(--space-page-horizontal));
+    margin-right: calc(-1 * var(--space-page-horizontal));
     padding-bottom: calc(1.5rem + 5rem);
   }
 }
