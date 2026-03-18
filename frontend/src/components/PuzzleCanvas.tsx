@@ -902,7 +902,10 @@ export function PuzzleCanvas({
                 style={{
                   cursor: piece.isLocked ? 'default' : 'grab',
                   pointerEvents: piece.isLocked ? 'none' : 'auto',
-                  filter: piece.isLocked ? undefined : 'url(#piece-drop-shadow)',
+                  filter:
+                    piece.isLocked || isDragging
+                      ? undefined
+                      : 'url(#piece-drop-shadow)',
                   transition: isSnapped ? snapTransition : defaultTransition,
                 }}
                 onPointerDown={handlePointerDown}
