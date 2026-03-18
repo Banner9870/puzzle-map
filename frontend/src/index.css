@@ -254,6 +254,27 @@ button:focus-visible {
   transition: transform 160ms ease-out;
 }
 
+/* iOS Safari performance: SVG filters/transitions can cause stutter during pointer drags.
+ * Keep gameplay logic unchanged; this is purely rendering-performance tuning. */
+@media (max-width: 767px) and (orientation: portrait) {
+  @supports (-webkit-touch-callout: none) {
+    .puzzle-piece {
+      transition: none !important;
+      will-change: auto;
+      transform-box: unset;
+      transform-origin: center;
+    }
+
+    .puzzle-piece--free {
+      filter: none !important;
+    }
+
+    .puzzle-piece--snapped {
+      transition: none !important;
+    }
+  }
+}
+
 .puzzle-piece-path {
   fill: var(--puzzle-piece-fill);
   stroke: var(--puzzle-piece-stroke);
