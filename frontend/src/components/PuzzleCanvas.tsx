@@ -715,9 +715,6 @@ export function PuzzleCanvas({
       setDraggingPieceId(id) // for sort/z + CSS class
       setIsDragMoving(false)
       dragStartedRef.current = false
-      if (piece.name) {
-        onNeighborhoodTap?.(piece.name)
-      }
     },
     [pieces, getSvgPoint, onNeighborhoodTap],
   )
@@ -774,7 +771,9 @@ export function PuzzleCanvas({
       const wasDrag = dragStartedRef.current
       dragStartedRef.current = false
 
-      if (piece.name) {
+      // Neighborhood UI updates can trigger layout reflow; only fire onNeighborhoodTap
+      // when this gesture was a tap (not an actual drag).
+      if (!wasDrag && piece.name) {
         onNeighborhoodTap?.(piece.name)
       }
       if (!wasDrag && !piece.isLocked) {
