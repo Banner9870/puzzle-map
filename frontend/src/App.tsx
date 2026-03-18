@@ -6,7 +6,7 @@ import './App.css'
 import { useEffect, useState } from 'react'
 import { PuzzleCanvas } from './components/PuzzleCanvas'
 import { BottomSheet } from './components/BottomSheet'
-import { NeighborhoodCard } from './components/NeighborhoodCard'
+import { NeighborhoodCard as NeighborhoodCardComponent } from './components/NeighborhoodCard'
 import { copy } from './content'
 import {
   clearPuzzleState,
@@ -431,7 +431,10 @@ function App() {
           >
             {!isMobilePortrait && (
               <div className="neighborhood-panel">
-                <NeighborhoodCard neighborhoodName={lastNeighborhood} variant="panel" />
+                <NeighborhoodCardComponent
+                  neighborhoodName={lastNeighborhood}
+                  variant="panel"
+                />
               </div>
             )}
           </aside>
@@ -442,7 +445,10 @@ function App() {
             title={lastNeighborhood ?? 'Tap a neighborhood.'}
             dragActive={isDragActive}
           >
-            <NeighborhoodCard neighborhoodName={lastNeighborhood} variant="sheet" />
+            <NeighborhoodCardComponent
+              neighborhoodName={lastNeighborhood}
+              variant="sheet"
+            />
           </BottomSheet>
         )}
 
