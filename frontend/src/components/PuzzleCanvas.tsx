@@ -237,7 +237,6 @@ export function PuzzleCanvas({
   const [draggingPieceId, setDraggingPieceId] = useState<string | null>(null)
   const [isDragMoving, setIsDragMoving] = useState(false)
   const [snappedPieceId, setSnappedPieceId] = useState<string | null>(null)
-  const snappedTimeoutRef = useRef<number | null>(null)
   const [dragOffset, setDragOffset] = useState<{ x: number; y: number } | null>(
     null,
   )
@@ -742,29 +741,15 @@ export function PuzzleCanvas({
       setIsDragMoving(false)
       setDragOffset(null)
 
-      const dx = piece.currentCenterX - piece.targetCenterX
-      const dy = piece.currentCenterY - piece.targetCenterY
-      const distance = Math.sqrt(dx * dx + dy * dy)
-      const shouldSnap = distance <= SNAP_TOLERANCE
-
-      if (shouldSnap) {
-        // Keep snap UI state in sync with the snap position update so the
-        // animation starts immediately on iOS Safari (no "finger up gap").
-        if (snappedTimeoutRef.current != null) {
-          window.clearTimeout(snappedTimeoutRef.current)
-        }
-        setSnappedPieceId(id)
-        if (typeof navigator !== 'undefined' && navigator.vibrate) {
-          navigator.vibrate(10)
-        }
-        snappedTimeoutRef.current = window.setTimeout(() => {
-          setSnappedPieceId((current) => (current === id ? null : current))
-          snappedTimeoutRef.current = null
-        }, 320)
-      }
-
       setPieces((prev) => {
-        if (!shouldSnap) return prev
+        let snapped = false
+        const p = prev.find((x) => x.id === id)
+        if (!p) return prev
+        const dx = p.currentCenterX - p.targetCenterX
+        const dy = p.currentCenterY - p.targetCenterY
+        const distance = Math.sqrt(dx * dx + dy * dy)
+        if (distance > SNAP_TOLERANCE) return prev
+        snapped = true
         setUnlockedOrder((order) => order.filter((pid) => pid !== id))
         const next = prev.map((pieceState) =>
           pieceState.id === id
@@ -779,6 +764,15 @@ export function PuzzleCanvas({
         const allLocked = next.every((x) => x.isLocked)
         if (allLocked) {
           queueMicrotask(() => onCompleted?.())
+        }
+        setSnappedPieceId(id)
+        if (snapped) {
+          if (typeof navigator !== 'undefined' && navigator.vibrate) {
+            navigator.vibrate(10)
+          }
+          window.setTimeout(() => {
+            setSnappedPieceId((current) => (current === id ? null : current))
+          }, 320)
         }
         return next
       })
