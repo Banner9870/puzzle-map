@@ -485,10 +485,10 @@ function App() {
                       onClick={(e) => {
                         e.preventDefault()
                         e.stopPropagation()
-                        setIsCompletionModalOpen(false)
+                        handleClearPuzzle()
                       }}
                     >
-                      {copy.secondaryButton}
+                      {copy.startOverButton}
                     </button>
                   </div>
                 </>
