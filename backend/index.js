@@ -117,10 +117,33 @@ app.post('/api/early-access', async (req, res) => {
     return res.status(400).json({ error: 'email is not valid.' })
   }
 
+  const emailNormalized = emailTrimmed.toLowerCase()
+
   const completedAtValue =
     typeof completedAt === 'string' && completedAt.length > 0
       ? completedAt
       : new Date().toISOString()
+
+  // De-dup by normalized email. Use an expression-based unique index on:
+  //   lower(trim(email))
+  // to prevent duplicates under concurrency.
+  const selectExistingText = `
+    SELECT id
+    FROM signups
+    WHERE lower(trim(email)) = $1
+    LIMIT 1
+  `
+
+  try {
+    const existing = await pool.query(selectExistingText, [emailNormalized])
+    const existingId = existing.rows[0]?.id ?? null
+    if (existingId != null) {
+      return res.status(200).json({ ok: true, id: existingId, alreadyOnList: true })
+    }
+  } catch (error) {
+    console.error('Error checking existing signup', error)
+    return res.status(500).json({ error: 'Failed to check signup.' })
+  }
 
   const text = `
     INSERT INTO signups
@@ -142,8 +165,31 @@ app.post('/api/early-access', async (req, res) => {
 
   try {
     const result = await pool.query(text, values)
-    return res.status(201).json({ ok: true, id: result.rows[0]?.id ?? null })
+    return res.status(201).json({
+      ok: true,
+      id: result.rows[0]?.id ?? null,
+      alreadyOnList: false,
+    })
   } catch (error) {
+    // If a concurrent insert happened, the (expression) unique index should prevent duplicates.
+    // In that case, re-query and respond as already-on-the-list.
+    // Postgres unique_violation is 23505.
+    if (error && typeof error === 'object' && error.code === '23505') {
+      try {
+        const existing = await pool.query(selectExistingText, [emailNormalized])
+        const existingId = existing.rows[0]?.id ?? null
+        if (existingId != null) {
+          return res.status(200).json({
+            ok: true,
+            id: existingId,
+            alreadyOnList: true,
+          })
+        }
+      } catch (requeryError) {
+        console.error('Error re-querying existing signup after conflict', requeryError)
+      }
+    }
+
     console.error('Error inserting signup', error)
     return res.status(500).json({ error: 'Failed to save signup.' })
   }

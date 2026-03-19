@@ -245,7 +245,24 @@ function App() {
         body: JSON.stringify(payload),
       })
 
+      const data: { alreadyOnList?: boolean } | null = await response
+        .json()
+        .catch(() => null)
+
       if (!response.ok) {
+        // If the backend still returns non-2xx for duplicates, treat that case as success.
+        if (data?.alreadyOnList && visitorId) {
+          setEmailStatus('success')
+          setEmailError(null)
+          setEmailSubmitted(visitorId)
+          setHasSubmittedEmail(true)
+          trackEmailSubmitSuccess({
+            deviceType,
+            hasCompletedPuzzle,
+          })
+          return
+        }
+
         setEmailStatus('error')
         setEmailError(copy.submitError)
         trackEmailSubmitFailure({
@@ -255,7 +272,10 @@ function App() {
         return
       }
 
+      // For both “new insert” and “already on list” cases, the backend should return 2xx.
+      // Drive the UI entirely from the presence of the backend flag (and persist the local marker).
       setEmailStatus('success')
+      setEmailError(null)
       if (visitorId) {
         setEmailSubmitted(visitorId)
         setHasSubmittedEmail(true)
@@ -465,17 +485,6 @@ function App() {
                       onClick={(e) => {
                         e.preventDefault()
                         e.stopPropagation()
-                        handleClearPuzzle()
-                      }}
-                    >
-                      {copy.startOverButton}
-                    </button>
-                    <button
-                      type="button"
-                      className="completion-modal-secondary"
-                      onClick={(e) => {
-                        e.preventDefault()
-                        e.stopPropagation()
                         setIsCompletionModalOpen(false)
                       }}
                     >
@@ -513,17 +522,6 @@ function App() {
                         {emailStatus === 'submitting'
                           ? copy.submitButtonBusy
                           : copy.submitButton}
-                      </button>
-                      <button
-                        type="button"
-                        className="completion-modal-secondary"
-                        onClick={(e) => {
-                          e.preventDefault()
-                          e.stopPropagation()
-                          handleClearPuzzle()
-                        }}
-                      >
-                        {copy.startOverButton}
                       </button>
                       <button
                         type="button"
